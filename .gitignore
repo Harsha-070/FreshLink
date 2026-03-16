@@ -1,0 +1,15 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example
+backend/.env
+backend/data/db.json
+serviceAccountKey.json
+**/serviceAccountKey.json
+.zencoder/
+.zenflow/

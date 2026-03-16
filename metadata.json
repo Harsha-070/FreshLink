@@ -1,0 +1,5 @@
+{
+  "name": "FreshLink",
+  "description": "Enterprise B2B Marketplace for Fresh Produce connecting farmers to restaurants.",
+  "requestFramePermissions": ["microphone", "geolocation"]
+}

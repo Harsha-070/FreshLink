@@ -1,0 +1,85 @@
+item_name,category,sub_category,unit,min_price_inr,max_price_inr,average_price_inr,market_city,last_updated,image_keyword
+tomato,vegetable,solanaceae,kg,19,24,21.5,Hyderabad,2026-03,tomatoes-red-fresh
+onion,vegetable,allium,kg,26,33,29.5,Hyderabad,2026-03,onions-red
+potato,vegetable,root,kg,25,32,28.5,Hyderabad,2026-03,potatoes-fresh
+cabbage,vegetable,cruciferous,kg,22,27,24.5,Hyderabad,2026-03,cabbage-green
+cauliflower,vegetable,cruciferous,piece,34,42,38,Hyderabad,2026-03,cauliflower-white
+brinjal,vegetable,solanaceae,kg,37,47,42,Hyderabad,2026-03,eggplant-purple
+okra,vegetable,mallow,kg,47,59,53,Hyderabad,2026-03,okra-ladyfinger
+french beans,vegetable,legume,kg,65,81,73,Hyderabad,2026-03,green-beans-fresh
+carrot,vegetable,root,kg,26,33,29.5,Hyderabad,2026-03,carrots-orange
+beetroot,vegetable,root,kg,36,45,40.5,Hyderabad,2026-03,beetroot-red
+cucumber,vegetable,cucurbit,kg,31,39,35,Hyderabad,2026-03,cucumber-green
+pumpkin,vegetable,cucurbit,kg,22,27,24.5,Hyderabad,2026-03,pumpkin-orange
+bottle gourd,vegetable,cucurbit,piece,28,35,31.5,Hyderabad,2026-03,bottle-gourd-lauki
+ridge gourd,vegetable,cucurbit,kg,42,53,47.5,Hyderabad,2026-03,ridge-gourd
+capsicum,vegetable,solanaceae,kg,55,69,62,Hyderabad,2026-03,bell-pepper-capsicum
+green chilli,vegetable,solanaceae,kg,50,63,56.5,Hyderabad,2026-03,green-chilli-pepper
+ginger,vegetable,rhizome,kg,92,116,104,Hyderabad,2026-03,ginger-root
+garlic,vegetable,allium,kg,139,174,156.5,Hyderabad,2026-03,garlic-cloves
+spinach,vegetable,leafy,kg,19,24,21.5,Hyderabad,2026-03,spinach-leaves
+coriander,vegetable,leafy,kg,16,20,18,Hyderabad,2026-03,coriander-cilantro
+bitter gourd,vegetable,cucurbit,kg,44,56,50,Hyderabad,2026-03,bitter-gourd-karela
+drumstick,vegetable,moringa,kg,84,105,94.5,Hyderabad,2026-03,drumstick-moringa
+ivy gourd,vegetable,cucurbit,kg,37,47,42,Hyderabad,2026-03,ivy-gourd-tindora
+radish,vegetable,root,kg,36,45,40.5,Hyderabad,2026-03,white-radish
+snake gourd,vegetable,cucurbit,kg,40,50,45,Hyderabad,2026-03,snake-gourd
+mint leaves,vegetable,leafy,kg,7,9,8,Hyderabad,2026-03,mint-leaves-fresh
+cluster beans,vegetable,legume,kg,54,68,61,Hyderabad,2026-03,cluster-beans-guar
+green peas,vegetable,legume,kg,58,72,65,Hyderabad,2026-03,green-peas-fresh
+sweet potato,vegetable,root,kg,71,89,80,Hyderabad,2026-03,sweet-potato-orange
+colocasia,vegetable,root,kg,32,41,36.5,Hyderabad,2026-03,colocasia-taro
+elephant yam,vegetable,root,kg,43,54,48.5,Hyderabad,2026-03,elephant-yam
+raw banana,vegetable,plantain,piece,8,12,10,Hyderabad,2026-03,raw-banana-green
+curry leaves,vegetable,leafy,kg,35,44,39.5,Hyderabad,2026-03,curry-leaves
+fenugreek leaves,vegetable,leafy,kg,16,20,18,Hyderabad,2026-03,fenugreek-methi
+spring onion,vegetable,allium,bunch,10,15,12.5,Hyderabad,2026-03,spring-onion
+amaranth leaves,vegetable,leafy,kg,15,22,18.5,Hyderabad,2026-03,amaranth-greens
+sorrel leaves,vegetable,leafy,kg,20,28,24,Hyderabad,2026-03,sorrel-leaves-gongura
+dill leaves,vegetable,leafy,kg,18,25,21.5,Hyderabad,2026-03,dill-leaves-fresh
+pointed gourd,vegetable,cucurbit,kg,45,58,51.5,Hyderabad,2026-03,pointed-gourd-parwal
+ash gourd,vegetable,cucurbit,kg,18,25,21.5,Hyderabad,2026-03,ash-gourd-white
+broad beans,vegetable,legume,kg,40,52,46,Hyderabad,2026-03,broad-beans
+double beans,vegetable,legume,kg,55,70,62.5,Hyderabad,2026-03,lima-beans
+baby corn,vegetable,cereal,kg,80,110,95,Hyderabad,2026-03,baby-corn
+mushroom,vegetable,fungi,kg,90,130,110,Hyderabad,2026-03,white-mushroom
+broccoli,vegetable,cruciferous,kg,70,100,85,Hyderabad,2026-03,broccoli-green
+zucchini,vegetable,cucurbit,kg,50,70,60,Hyderabad,2026-03,zucchini-green
+red cabbage,vegetable,cruciferous,kg,45,60,52.5,Hyderabad,2026-03,red-cabbage
+corn on cob,vegetable,cereal,piece,15,22,18.5,Hyderabad,2026-03,corn-on-cob
+tapioca,vegetable,root,kg,35,48,41.5,Hyderabad,2026-03,tapioca-cassava
+banana stem,vegetable,plantain,piece,20,30,25,Hyderabad,2026-03,banana-stem
+banana flower,vegetable,plantain,piece,15,25,20,Hyderabad,2026-03,banana-flower
+raw jackfruit,vegetable,moraceae,kg,25,35,30,Hyderabad,2026-03,raw-jackfruit
+lemon,fruit,citrus,piece,4,7,5.5,Hyderabad,2026-03,lemon-yellow
+banana,fruit,tropical,kg,45,55,50,Hyderabad,2026-03,banana-ripe
+apple,fruit,temperate,kg,160,240,200,Hyderabad,2026-03,apple-red
+orange,fruit,citrus,kg,60,90,75,Hyderabad,2026-03,orange-fruit
+papaya,fruit,tropical,kg,35,45,40,Hyderabad,2026-03,papaya-ripe
+pineapple,fruit,tropical,piece,50,75,62.5,Hyderabad,2026-03,pineapple-tropical
+mango,fruit,tropical,kg,120,180,150,Hyderabad,2026-03,mango-alphonso
+watermelon,fruit,cucurbit,kg,25,35,30,Hyderabad,2026-03,watermelon-slice
+muskmelon,fruit,cucurbit,kg,40,60,50,Hyderabad,2026-03,muskmelon-cantaloupe
+grapes,fruit,vine,kg,80,120,100,Hyderabad,2026-03,grapes-green
+pomegranate,fruit,berry,kg,180,260,220,Hyderabad,2026-03,pomegranate-red
+guava,fruit,tropical,kg,50,80,65,Hyderabad,2026-03,guava-fresh
+sapota,fruit,tropical,kg,45,65,55,Hyderabad,2026-03,sapota-chikoo
+sweet lime,fruit,citrus,kg,55,85,70,Hyderabad,2026-03,sweet-lime-mosambi
+coconut,fruit,drupe,piece,30,45,37.5,Hyderabad,2026-03,coconut-fresh
+amla,fruit,berry,kg,108,135,121.5,Hyderabad,2026-03,amla-gooseberry
+jackfruit,fruit,tropical,kg,30,50,40,Hyderabad,2026-03,jackfruit-ripe
+custard apple,fruit,tropical,kg,80,120,100,Hyderabad,2026-03,custard-apple
+fig,fruit,temperate,kg,120,180,150,Hyderabad,2026-03,fig-fresh
+dragon fruit,fruit,exotic,kg,150,220,185,Hyderabad,2026-03,dragon-fruit-pink
+passion fruit,fruit,exotic,kg,180,260,220,Hyderabad,2026-03,passion-fruit
+avocado,fruit,exotic,kg,200,320,260,Hyderabad,2026-03,avocado-fresh
+kiwi,fruit,exotic,kg,180,280,230,Hyderabad,2026-03,kiwi-fruit
+star fruit,fruit,exotic,kg,60,90,75,Hyderabad,2026-03,star-fruit
+wood apple,fruit,tropical,piece,15,25,20,Hyderabad,2026-03,wood-apple
+tender coconut,fruit,drupe,piece,30,50,40,Hyderabad,2026-03,tender-coconut
+dates,fruit,drupe,kg,200,350,275,Hyderabad,2026-03,dates-fresh
+jamun,fruit,tropical,kg,80,140,110,Hyderabad,2026-03,jamun-java-plum
+litchi,fruit,tropical,kg,120,200,160,Hyderabad,2026-03,litchi-lychee
+pear,fruit,temperate,kg,100,160,130,Hyderabad,2026-03,pear-green
+plum,fruit,temperate,kg,100,170,135,Hyderabad,2026-03,plum-red
+strawberry,fruit,berry,kg,200,350,275,Hyderabad,2026-03,strawberry-red
