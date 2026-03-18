@@ -18,14 +18,6 @@ const fadeUp = {
   animate: { opacity: 1, y: 0 },
 };
 
-// Demo data for surplus distribution pie chart only
-const surplusDistributionData = [
-  { name: 'Vegetables', value: 45, color: '#10b981' },
-  { name: 'Fruits', value: 30, color: '#f59e0b' },
-  { name: 'Leafy Greens', value: 15, color: '#3b82f6' },
-  { name: 'Others', value: 10, color: '#8b5cf6' },
-];
-
 const CATEGORY_COLORS: Record<string, string> = {
   Vegetables: '#10b981',
   Fruits: '#f59e0b',
@@ -123,7 +115,7 @@ export default function VendorAnalytics() {
   // Build surplus by category from real stock
   const buildSurplusCategoryData = () => {
     const surplusItems = stock.filter((s: any) => s.isSurplus || s.surplus);
-    if (surplusItems.length === 0) return surplusDistributionData; // Fallback to demo
+    if (surplusItems.length === 0) return []; // Return empty if no surplus
 
     const categoryTotals: Record<string, number> = {};
     surplusItems.forEach((item: any) => {
@@ -132,7 +124,7 @@ export default function VendorAnalytics() {
     });
 
     const total = Object.values(categoryTotals).reduce((a, b) => a + b, 0);
-    if (total === 0) return surplusDistributionData;
+    if (total === 0) return [];
 
     return Object.entries(categoryTotals).map(([name, qty]) => ({
       name,
@@ -155,6 +147,7 @@ export default function VendorAnalytics() {
   const hasRevenueData = revenueData.some(d => d.revenue > 0);
   const hasTopItems = topItemsData.length > 0;
   const hasWasteData = wasteData.some(d => d.wastePrevented > 0);
+  const hasSurplusData = surplusCategoryData.length > 0;
 
   const salesKpis = [
     {
@@ -450,6 +443,8 @@ export default function VendorAnalytics() {
                   <div className="h-full flex items-center justify-center">
                     <Loader2 className="w-8 h-8 animate-spin text-slate-300" />
                   </div>
+                ) : !hasSurplusData ? (
+                  <EmptyState icon={Recycle} message="No surplus items yet. Mark items as surplus to see distribution." />
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -461,10 +456,10 @@ export default function VendorAnalytics() {
                         outerRadius={80}
                         paddingAngle={3}
                         dataKey="value"
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}
                         labelLine={{ stroke: '#64748b', strokeWidth: 1 }}
                       >
-                        {surplusCategoryData.map((entry, index) => (
+                        {surplusCategoryData.map((entry: { name: string; value: number; color: string }, index: number) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>

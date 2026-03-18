@@ -14,20 +14,35 @@ import { Link } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useStore';
 
-const revenueChartData = [
-  { day: 'Mon', revenue: 3200 },
-  { day: 'Tue', revenue: 4100 },
-  { day: 'Wed', revenue: 2800 },
-  { day: 'Thu', revenue: 5200 },
-  { day: 'Fri', revenue: 4600 },
-  { day: 'Sat', revenue: 6100 },
-  { day: 'Sun', revenue: 5400 },
-];
-
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
 };
+
+// Build revenue data from real orders
+function buildRevenueData(orders: any[]): { day: string; revenue: number }[] {
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const today = new Date();
+  const last7Days: { day: string; revenue: number }[] = [];
+
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - i);
+    const dayName = days[date.getDay()];
+    const dateStr = date.toISOString().split('T')[0];
+
+    const dayRevenue = orders
+      .filter((o: any) => {
+        const orderDate = o.createdAt ? new Date(o.createdAt).toISOString().split('T')[0] : '';
+        return orderDate === dateStr && (o.status === 'delivered' || o.status === 'confirmed' || o.status === 'processing');
+      })
+      .reduce((sum: number, o: any) => sum + (o.totalAmount || o.total || 0), 0);
+
+    last7Days.push({ day: dayName, revenue: dayRevenue });
+  }
+
+  return last7Days;
+}
 
 export default function VendorDashboard() {
   const { user } = useAuthStore();
@@ -35,6 +50,7 @@ export default function VendorDashboard() {
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [stock, setStock] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [revenueChartData, setRevenueChartData] = useState<{ day: string; revenue: number }[]>([]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -49,6 +65,7 @@ export default function VendorDashboard() {
       if (ordersData.status === 'fulfilled') {
         const orders = ordersData.value.orders || ordersData.value || [];
         setRecentOrders(Array.isArray(orders) ? orders.slice(0, 5) : []);
+        setRevenueChartData(buildRevenueData(Array.isArray(orders) ? orders : []));
       }
       if (stockData.status === 'fulfilled') {
         setStock(stockData.value.stock || stockData.value || []);
@@ -235,33 +252,45 @@ export default function VendorDashboard() {
               <CardTitle className="text-lg font-semibold text-slate-900">Revenue Trend (Last 7 Days)</CardTitle>
             </CardHeader>
             <CardContent className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={revenueChartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                  <defs>
-                    <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} tickFormatter={(v) => `₹${v}`} />
-                  <Tooltip
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)' }}
-                    formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Revenue']}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#10b981"
-                    strokeWidth={3}
-                    fillOpacity={1}
-                    fill="url(#revenueGrad)"
-                    dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }}
-                    activeDot={{ r: 6, strokeWidth: 2, stroke: '#fff' }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {loading ? (
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
+                </div>
+              ) : revenueChartData.every(d => d.revenue === 0) ? (
+                <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                  <TrendingUp className="w-12 h-12 mb-3 opacity-30" />
+                  <p className="text-sm font-medium">No revenue data yet</p>
+                  <p className="text-xs mt-1">Complete orders to see your revenue trend</p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={revenueChartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                    <defs>
+                      <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} tickFormatter={(v) => `₹${v}`} />
+                    <Tooltip
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)' }}
+                      formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Revenue']}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#10b981"
+                      strokeWidth={3}
+                      fillOpacity={1}
+                      fill="url(#revenueGrad)"
+                      dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }}
+                      activeDot={{ r: 6, strokeWidth: 2, stroke: '#fff' }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
         </motion.div>
