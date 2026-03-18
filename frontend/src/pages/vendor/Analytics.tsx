@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   IndianRupee, ShoppingCart, TrendingUp, Star, Download, Loader2,
-  Leaf, Recycle, TreePine, Package
+  Leaf, Recycle, TreePine, Package, BarChart2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,33 +18,7 @@ const fadeUp = {
   animate: { opacity: 1, y: 0 },
 };
 
-const revenueData = [
-  { day: 'Mon', revenue: 3200 },
-  { day: 'Tue', revenue: 4500 },
-  { day: 'Wed', revenue: 2800 },
-  { day: 'Thu', revenue: 5100 },
-  { day: 'Fri', revenue: 4200 },
-  { day: 'Sat', revenue: 6800 },
-  { day: 'Sun', revenue: 5500 },
-];
-
-const topItemsData = [
-  { name: 'Tomatoes', orders: 45 },
-  { name: 'Onions', orders: 38 },
-  { name: 'Potatoes', orders: 32 },
-  { name: 'Carrots', orders: 25 },
-  { name: 'Spinach', orders: 20 },
-];
-
-const wasteReductionData = [
-  { month: 'Jan', wastePrevented: 45, surplusSold: 32 },
-  { month: 'Feb', wastePrevented: 52, surplusSold: 41 },
-  { month: 'Mar', wastePrevented: 68, surplusSold: 55 },
-  { month: 'Apr', wastePrevented: 75, surplusSold: 62 },
-  { month: 'May', wastePrevented: 82, surplusSold: 70 },
-  { month: 'Jun', wastePrevented: 95, surplusSold: 78 },
-];
-
+// Demo data for surplus distribution pie chart only
 const surplusDistributionData = [
   { name: 'Vegetables', value: 45, color: '#10b981' },
   { name: 'Fruits', value: 30, color: '#f59e0b' },
@@ -52,39 +26,135 @@ const surplusDistributionData = [
   { name: 'Others', value: 10, color: '#8b5cf6' },
 ];
 
+const CATEGORY_COLORS: Record<string, string> = {
+  Vegetables: '#10b981',
+  Fruits: '#f59e0b',
+  'Leafy Greens': '#3b82f6',
+  Dairy: '#8b5cf6',
+  Grains: '#ec4899',
+  Others: '#6b7280',
+};
+
 export default function VendorAnalytics() {
   const [stats, setStats] = useState<any>(null);
   const [stock, setStock] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchData = async () => {
       try {
-        const [statsData, stockData] = await Promise.all([
-          api.getOrderStats(),
+        const [statsData, stockData, ordersData] = await Promise.all([
+          api.getOrderStats().catch(() => ({})),
           api.getMyStock().catch(() => ({ stock: [] })),
+          api.getOrders().catch(() => ({ orders: [] })),
         ]);
         setStats(statsData);
         setStock(stockData.stock || stockData || []);
+        setOrders(ordersData.orders || ordersData || []);
       } catch (err) {
         console.error('Failed to fetch stats:', err);
       } finally {
         setLoading(false);
       }
     };
-    fetchStats();
+    fetchData();
   }, []);
 
   const totalRevenue = stats?.totalRevenue ?? 0;
   const totalOrders = stats?.totalOrders ?? 0;
   const avgOrderValue = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
-  const topSellingItem = stats?.topSellingItem ?? 'Tomatoes';
+  const topSellingItem = stats?.topSellingItem ?? (orders.length > 0 ? 'N/A' : '-');
+
+  // Build revenue chart from real orders (last 7 days)
+  const buildRevenueData = () => {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const today = new Date();
+    const revenueByDay: Record<string, number> = {};
+
+    // Initialize last 7 days
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dayName = days[date.getDay()];
+      revenueByDay[dayName] = 0;
+    }
+
+    // Aggregate order revenues by day
+    orders.forEach((order: any) => {
+      const orderDate = new Date(order.createdAt);
+      const daysDiff = Math.floor((today.getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysDiff <= 6 && daysDiff >= 0) {
+        const dayName = days[orderDate.getDay()];
+        revenueByDay[dayName] += order.totalAmount || order.total || 0;
+      }
+    });
+
+    return Object.entries(revenueByDay).map(([day, revenue]) => ({ day, revenue }));
+  };
+
+  // Build top items from real orders
+  const buildTopItemsData = () => {
+    const itemCounts: Record<string, number> = {};
+
+    orders.forEach((order: any) => {
+      (order.items || []).forEach((item: any) => {
+        const name = item.name || item.produce || 'Unknown';
+        itemCounts[name] = (itemCounts[name] || 0) + (item.quantity || 1);
+      });
+    });
+
+    return Object.entries(itemCounts)
+      .map(([name, orders]) => ({ name, orders }))
+      .sort((a, b) => b.orders - a.orders)
+      .slice(0, 5);
+  };
+
+  // Build waste reduction data from surplus stock
+  const buildWasteData = () => {
+    const surplusItems = stock.filter((s: any) => s.isSurplus || s.surplus);
+    const totalWaste = surplusItems.reduce((sum: number, s: any) => sum + (s.quantity || 0), 0);
+
+    // Group by month (current month data)
+    const currentMonth = new Date().toLocaleString('en-US', { month: 'short' });
+    return [{ month: currentMonth, wastePrevented: totalWaste, surplusSold: Math.round(totalWaste * 0.7) }];
+  };
+
+  // Build surplus by category from real stock
+  const buildSurplusCategoryData = () => {
+    const surplusItems = stock.filter((s: any) => s.isSurplus || s.surplus);
+    if (surplusItems.length === 0) return surplusDistributionData; // Fallback to demo
+
+    const categoryTotals: Record<string, number> = {};
+    surplusItems.forEach((item: any) => {
+      const category = item.category || 'Others';
+      categoryTotals[category] = (categoryTotals[category] || 0) + (item.quantity || 0);
+    });
+
+    const total = Object.values(categoryTotals).reduce((a, b) => a + b, 0);
+    if (total === 0) return surplusDistributionData;
+
+    return Object.entries(categoryTotals).map(([name, qty]) => ({
+      name,
+      value: Math.round((qty / total) * 100),
+      color: CATEGORY_COLORS[name] || '#6b7280',
+    }));
+  };
+
+  const revenueData = buildRevenueData();
+  const topItemsData = buildTopItemsData();
+  const wasteData = buildWasteData();
+  const surplusCategoryData = buildSurplusCategoryData();
 
   // Waste metrics calculations
   const surplusItems = stock.filter((s: any) => s.isSurplus || s.surplus);
   const wastePrevented = surplusItems.reduce((sum: number, s: any) => sum + (s.quantity || 0), 0);
   const surplusUtilization = stock.length > 0 ? Math.round((surplusItems.length / stock.length) * 100) : 0;
-  const co2Saved = Math.round(wastePrevented * 2.5); // ~2.5 kg CO2 per kg of food waste prevented
+  const co2Saved = Math.round(wastePrevented * 2.5);
+
+  const hasRevenueData = revenueData.some(d => d.revenue > 0);
+  const hasTopItems = topItemsData.length > 0;
+  const hasWasteData = wasteData.some(d => d.wastePrevented > 0);
 
   const salesKpis = [
     {
@@ -92,7 +162,7 @@ export default function VendorAnalytics() {
       value: `₹${totalRevenue.toLocaleString('en-IN')}`,
       icon: IndianRupee,
       color: 'emerald',
-      change: '+12.5%',
+      change: totalOrders > 0 ? 'From orders' : 'No orders yet',
       positive: true,
     },
     {
@@ -100,7 +170,7 @@ export default function VendorAnalytics() {
       value: totalOrders,
       icon: ShoppingCart,
       color: 'blue',
-      change: '+8.2%',
+      change: totalOrders > 0 ? 'Completed' : 'No orders yet',
       positive: true,
     },
     {
@@ -108,7 +178,7 @@ export default function VendorAnalytics() {
       value: `₹${avgOrderValue.toLocaleString('en-IN')}`,
       icon: TrendingUp,
       color: 'violet',
-      change: '+3.1%',
+      change: totalOrders > 0 ? 'Per order' : '-',
       positive: true,
     },
     {
@@ -116,7 +186,7 @@ export default function VendorAnalytics() {
       value: topSellingItem,
       icon: Star,
       color: 'amber',
-      change: 'Most ordered',
+      change: totalOrders > 0 ? 'Most ordered' : '-',
       positive: true,
     },
   ];
@@ -127,7 +197,7 @@ export default function VendorAnalytics() {
       value: `${wastePrevented} kg`,
       icon: Leaf,
       color: 'teal',
-      change: 'This month',
+      change: wastePrevented > 0 ? 'This month' : 'No surplus yet',
       positive: true,
     },
     {
@@ -143,7 +213,7 @@ export default function VendorAnalytics() {
       value: `${co2Saved} kg`,
       icon: TreePine,
       color: 'green',
-      change: 'Environmental impact',
+      change: co2Saved > 0 ? 'Environmental impact' : '-',
       positive: true,
     },
     {
@@ -151,10 +221,17 @@ export default function VendorAnalytics() {
       value: surplusItems.length,
       icon: Package,
       color: 'orange',
-      change: 'Active surplus',
+      change: surplusItems.length > 0 ? 'Active surplus' : 'None',
       positive: true,
     },
   ];
+
+  const EmptyState = ({ icon: Icon, message }: { icon: any; message: string }) => (
+    <div className="h-full flex flex-col items-center justify-center text-slate-400 py-12">
+      <Icon className="w-12 h-12 mb-3 opacity-50" />
+      <p className="text-sm">{message}</p>
+    </div>
+  );
 
   return (
     <motion.div
@@ -248,50 +325,35 @@ export default function VendorAnalytics() {
             </CardHeader>
             <CardContent>
               <div className="h-[320px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={revenueData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="analyticsGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis
-                      dataKey="day"
-                      stroke="#94a3b8"
-                      fontSize={12}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis
-                      stroke="#94a3b8"
-                      fontSize={12}
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(v) => `₹${v}`}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: '#fff',
-                        borderRadius: '12px',
-                        border: 'none',
-                        boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)',
-                      }}
-                      formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Revenue']}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="revenue"
-                      stroke="#10b981"
-                      strokeWidth={3}
-                      fillOpacity={1}
-                      fill="url(#analyticsGrad)"
-                      dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }}
-                      activeDot={{ r: 6, strokeWidth: 2, stroke: '#fff' }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                {loading ? (
+                  <div className="h-full flex items-center justify-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-slate-300" />
+                  </div>
+                ) : !hasRevenueData ? (
+                  <EmptyState icon={BarChart2} message="No revenue data yet. Complete some orders to see trends." />
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={revenueData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="analyticsGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v}`} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)' }}
+                        formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Revenue']}
+                      />
+                      <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#analyticsGrad)"
+                        dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }}
+                        activeDot={{ r: 6, strokeWidth: 2, stroke: '#fff' }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -305,47 +367,26 @@ export default function VendorAnalytics() {
             </CardHeader>
             <CardContent>
               <div className="h-[280px] md:h-[320px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={topItemsData}
-                    layout="vertical"
-                    margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-                    <XAxis
-                      type="number"
-                      stroke="#94a3b8"
-                      fontSize={11}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis
-                      dataKey="name"
-                      type="category"
-                      stroke="#64748b"
-                      fontSize={11}
-                      tickLine={false}
-                      axisLine={false}
-                      width={60}
-                    />
-                    <Tooltip
-                      cursor={{ fill: '#f1f5f9' }}
-                      contentStyle={{
-                        backgroundColor: '#fff',
-                        borderRadius: '12px',
-                        border: 'none',
-                        boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)',
-                      }}
-                      formatter={(value: number) => [`${value} orders`, 'Frequency']}
-                    />
-                    <Bar
-                      dataKey="orders"
-                      fill="#10b981"
-                      radius={[0, 8, 8, 0]}
-                      barSize={20}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
+                {loading ? (
+                  <div className="h-full flex items-center justify-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-slate-300" />
+                  </div>
+                ) : !hasTopItems ? (
+                  <EmptyState icon={Package} message="No orders yet. Top items will appear here." />
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={topItemsData} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                      <XAxis type="number" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis dataKey="name" type="category" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} width={60} />
+                      <Tooltip cursor={{ fill: '#f1f5f9' }}
+                        contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)' }}
+                        formatter={(value: number) => [`${value} orders`, 'Frequency']}
+                      />
+                      <Bar dataKey="orders" fill="#10b981" radius={[0, 8, 8, 0]} barSize={20} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -365,75 +406,33 @@ export default function VendorAnalytics() {
           <Card className="border-0 shadow-sm">
             <CardHeader>
               <CardTitle className="text-base md:text-lg font-semibold text-slate-900">
-                Waste Prevention Trend (6 Months)
+                Waste Prevention (Current Month)
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-[280px] md:h-[320px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={wasteReductionData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="wasteGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#14b8a6" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="surplusGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis
-                      dataKey="month"
-                      stroke="#94a3b8"
-                      fontSize={11}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis
-                      stroke="#94a3b8"
-                      fontSize={11}
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(v) => `${v}kg`}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: '#fff',
-                        borderRadius: '12px',
-                        border: 'none',
-                        boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)',
-                      }}
-                      formatter={(value: number, name: string) => [
-                        `${value} kg`,
-                        name === 'wastePrevented' ? 'Waste Prevented' : 'Surplus Sold'
-                      ]}
-                    />
-                    <Legend
-                      verticalAlign="top"
-                      height={36}
-                      formatter={(value) => value === 'wastePrevented' ? 'Waste Prevented' : 'Surplus Sold'}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="wastePrevented"
-                      stroke="#14b8a6"
-                      strokeWidth={2}
-                      fillOpacity={1}
-                      fill="url(#wasteGrad)"
-                      dot={{ r: 3, fill: '#14b8a6', strokeWidth: 2, stroke: '#fff' }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="surplusSold"
-                      stroke="#f59e0b"
-                      strokeWidth={2}
-                      fillOpacity={1}
-                      fill="url(#surplusGrad)"
-                      dot={{ r: 3, fill: '#f59e0b', strokeWidth: 2, stroke: '#fff' }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                {loading ? (
+                  <div className="h-full flex items-center justify-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-slate-300" />
+                  </div>
+                ) : !hasWasteData ? (
+                  <EmptyState icon={Leaf} message="No surplus items yet. Mark items as surplus to track waste prevention." />
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={wasteData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}kg`} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)' }}
+                        formatter={(value: number, name: string) => [`${value} kg`, name === 'wastePrevented' ? 'Waste Prevented' : 'Surplus Sold']}
+                      />
+                      <Legend formatter={(value) => value === 'wastePrevented' ? 'Waste Prevented' : 'Surplus Sold'} />
+                      <Bar dataKey="wastePrevented" fill="#14b8a6" radius={[8, 8, 0, 0]} barSize={60} />
+                      <Bar dataKey="surplusSold" fill="#f59e0b" radius={[8, 8, 0, 0]} barSize={60} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -447,34 +446,35 @@ export default function VendorAnalytics() {
             </CardHeader>
             <CardContent>
               <div className="h-[280px] md:h-[320px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={surplusDistributionData}
-                      cx="50%"
-                      cy="45%"
-                      innerRadius={50}
-                      outerRadius={80}
-                      paddingAngle={3}
-                      dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      labelLine={{ stroke: '#64748b', strokeWidth: 1 }}
-                    >
-                      {surplusDistributionData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: '#fff',
-                        borderRadius: '12px',
-                        border: 'none',
-                        boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)',
-                      }}
-                      formatter={(value: number) => [`${value}%`, 'Share']}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+                {loading ? (
+                  <div className="h-full flex items-center justify-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-slate-300" />
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={surplusCategoryData}
+                        cx="50%"
+                        cy="45%"
+                        innerRadius={50}
+                        outerRadius={80}
+                        paddingAngle={3}
+                        dataKey="value"
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        labelLine={{ stroke: '#64748b', strokeWidth: 1 }}
+                      >
+                        {surplusCategoryData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)' }}
+                        formatter={(value: number) => [`${value}%`, 'Share']}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </CardContent>
           </Card>
