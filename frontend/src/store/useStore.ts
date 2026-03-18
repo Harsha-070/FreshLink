@@ -12,6 +12,11 @@ interface User {
   rating?: number;
   totalOrders?: number;
   businessType?: string;
+  shopName?: string;
+  shopAddress?: string;
+  shopDescription?: string;
+  upiId?: string;
+  deliveryAddress?: string;
 }
 
 interface AuthState {
@@ -20,38 +25,42 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
 
-  sendOtp: (identifier: string, type: 'phone' | 'email') => Promise<string | null>;
-  verifyOtp: (identifier: string, otp: string, role: string, name?: string) => Promise<void>;
-  demoLogin: (email: string, password: string) => Promise<void>;
+  login: (phone: string, password: string, role: 'vendor' | 'business') => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   setCurrentUser: (user: User) => void;
-  setRole: (role: 'vendor' | 'business') => void;
+  refreshUser: () => Promise<void>;
+  updateProfile: (data: Partial<User>) => Promise<void>;
+}
+
+interface RegisterData {
+  name: string;
+  phone: string;
+  password: string;
+  role: 'vendor' | 'business';
+  email?: string;
+  // Vendor fields
+  shopName?: string;
+  shopAddress?: string;
+  shopDescription?: string;
+  upiId?: string;
+  // Business fields
+  businessType?: string;
+  deliveryAddress?: string;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       token: null,
       isAuthenticated: false,
       isLoading: false,
 
-      sendOtp: async (identifier, type) => {
+      login: async (phone, password, role) => {
         set({ isLoading: true });
         try {
-          const data = await api.sendOtp(identifier, type);
-          set({ isLoading: false });
-          return data.otp || null; // null if real email/SMS was sent
-        } catch (err: any) {
-          set({ isLoading: false });
-          throw err;
-        }
-      },
-
-      verifyOtp: async (identifier, otp, role, name?) => {
-        set({ isLoading: true });
-        try {
-          const data = await api.verifyOtp(identifier, otp, role, name);
+          const data = await api.login(phone, password, role);
           localStorage.setItem('freshlink-token', data.token);
           set({ user: data.user, token: data.token, isAuthenticated: true, isLoading: false });
         } catch (err: any) {
@@ -60,10 +69,10 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      demoLogin: async (email, password) => {
+      register: async (registerData) => {
         set({ isLoading: true });
         try {
-          const data = await api.demoLogin(email, password);
+          const data = await api.register(registerData);
           localStorage.setItem('freshlink-token', data.token);
           set({ user: data.user, token: data.token, isAuthenticated: true, isLoading: false });
         } catch (err: any) {
@@ -79,10 +88,27 @@ export const useAuthStore = create<AuthState>()(
       },
 
       setCurrentUser: (user) => set({ user, isAuthenticated: true }),
-      setRole: (role) =>
-        set((state) => ({
-          user: state.user ? { ...state.user, role } : null,
-        })),
+
+      refreshUser: async () => {
+        try {
+          const data = await api.getMe();
+          set({ user: data.user });
+        } catch (err) {
+          // If token is invalid, logout
+          get().logout();
+        }
+      },
+
+      updateProfile: async (profileData) => {
+        set({ isLoading: true });
+        try {
+          const data = await api.updateProfile(profileData);
+          set({ user: data.user, isLoading: false });
+        } catch (err: any) {
+          set({ isLoading: false });
+          throw err;
+        }
+      },
     }),
     {
       name: 'auth-storage',

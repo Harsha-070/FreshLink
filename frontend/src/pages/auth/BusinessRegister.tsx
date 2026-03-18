@@ -1,142 +1,84 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Building2, Phone, Mail, ArrowLeft, ShieldCheck, Sparkles, User, MapPin, Briefcase } from 'lucide-react';
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Building2, Phone, Mail, ArrowLeft, User, MapPin, Briefcase, Lock, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuthStore } from '../../store/useStore';
-import { api } from '../../lib/api';
 
-const businessTypes = ['Restaurant', 'Hotel', 'Juice Shop', 'Mess/Canteen', 'Catering', 'Cloud Kitchen', 'Bakery', 'Other'];
+const businessTypes = ['Restaurant', 'Hotel', 'Juice Shop', 'Mess/Canteen', 'Catering', 'Cloud Kitchen', 'Bakery', 'Cafe', 'Other'];
 
 export default function BusinessRegister() {
-  const [step, setStep] = useState<'details' | 'otp'>('details');
-  const [inputType, setInputType] = useState<'email' | 'phone'>('email');
-  const [identifier, setIdentifier] = useState('');
-  const [name, setName] = useState('');
-  const [businessType, setBusinessType] = useState('');
-  const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
+  const [formData, setFormData] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    businessType: '',
+    deliveryAddress: '',
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { sendOtp, verifyOtp } = useAuthStore();
-  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const { register } = useAuthStore();
 
-  useEffect(() => {
-    if (step === 'otp' && otpRefs.current[0]) {
-      otpRefs.current[0]?.focus();
-    }
-  }, [step]);
+  const handleChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
 
-  const handleSendOtp = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!name.trim()) {
+    // Validations
+    if (!formData.name.trim()) {
       toast.error('Please enter your business name');
       return;
     }
-    if (!businessType) {
+
+    const cleanPhone = formData.phone.replace(/\s/g, '');
+    if (!cleanPhone.match(/^\+?\d{10,13}$/)) {
+      toast.error('Please enter a valid phone number');
+      return;
+    }
+
+    if (formData.email && !formData.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
+    if (!formData.businessType) {
       toast.error('Please select your business type');
       return;
     }
 
-    if (inputType === 'phone') {
-      const cleaned = identifier.replace(/\s/g, '');
-      if (!cleaned.match(/^\+?\d{10,13}$/)) {
-        toast.error('Please enter a valid phone number');
-        return;
-      }
-    } else {
-      if (!identifier.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-        toast.error('Please enter a valid email address');
-        return;
-      }
+    if (formData.password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
     }
 
     setIsLoading(true);
     try {
-      const otp = await sendOtp(identifier.replace(/\s/g, ''), inputType);
-      setStep('otp');
-      if (otp) {
-        toast.success(`Demo OTP: ${otp}`, {
-          duration: 15000,
-          description: 'Use this OTP to verify (auto-displayed for demo)',
-        });
-      } else {
-        toast.success(`OTP sent to ${identifier}`, {
-          duration: 5000,
-          description: `Check your ${inputType === 'email' ? 'email inbox' : 'phone'} for the verification code`,
-        });
-      }
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to send OTP');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleOtpChange = (index: number, value: string) => {
-    if (value.length > 1) {
-      const digits = value.replace(/\D/g, '').slice(0, 6).split('');
-      const newOtp = [...otpDigits];
-      digits.forEach((d, i) => {
-        if (index + i < 6) newOtp[index + i] = d;
+      await register({
+        name: formData.name,
+        phone: cleanPhone,
+        password: formData.password,
+        role: 'business',
+        email: formData.email || undefined,
+        businessType: formData.businessType,
+        deliveryAddress: formData.deliveryAddress || undefined,
       });
-      setOtpDigits(newOtp);
-      const nextIndex = Math.min(index + digits.length, 5);
-      otpRefs.current[nextIndex]?.focus();
-      return;
-    }
-
-    if (!/^\d?$/.test(value)) return;
-
-    const newOtp = [...otpDigits];
-    newOtp[index] = value;
-    setOtpDigits(newOtp);
-
-    if (value && index < 5) {
-      otpRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
-    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
-      otpRefs.current[index - 1]?.focus();
-      const newOtp = [...otpDigits];
-      newOtp[index - 1] = '';
-      setOtpDigits(newOtp);
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const otp = otpDigits.join('');
-    if (otp.length !== 6) {
-      toast.error('Please enter the complete 6-digit OTP');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await verifyOtp(identifier.replace(/\s/g, ''), otp, 'business', name);
-      // Update profile with additional details
-      const profileUpdate: any = {};
-      if (businessType) profileUpdate.businessType = businessType;
-      if (deliveryAddress) profileUpdate.deliveryAddress = deliveryAddress;
-      if (Object.keys(profileUpdate).length > 0) {
-        try {
-          await api.updateProfile(profileUpdate);
-        } catch {
-          // Non-critical
-        }
-      }
       toast.success('Registration successful! Welcome to FreshLink!');
       navigate('/business/dashboard');
     } catch (err: any) {
-      toast.error(err?.message || 'Invalid OTP. Please try again.');
-      setOtpDigits(['', '', '', '', '', '']);
-      otpRefs.current[0]?.focus();
+      toast.error(err?.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -147,6 +89,7 @@ export default function BusinessRegister() {
       <Link to="/" className="absolute top-6 left-6 p-2 rounded-full bg-cyan-600/10 hover:bg-cyan-600/20 text-cyan-700 transition-colors z-10">
         <ArrowLeft className="w-5 h-5" />
       </Link>
+
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
           <Link to="/" className="flex items-center space-x-2">
@@ -167,274 +110,202 @@ export default function BusinessRegister() {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4">
-        <AnimatePresence mode="wait">
-          {step === 'details' ? (
-            <motion.div
-              key="details"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.3 }}
-              className="bg-white py-8 px-6 shadow-xl sm:rounded-2xl sm:px-10 border border-slate-100"
-            >
-              {/* Tabs */}
-              <div className="flex bg-slate-100 rounded-xl p-1 mb-6">
-                <button
-                  type="button"
-                  onClick={() => { setInputType('phone'); setIdentifier(''); }}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                    inputType === 'phone'
-                      ? 'bg-white text-cyan-700 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="bg-white py-8 px-6 shadow-xl sm:rounded-2xl sm:px-10 border border-slate-100"
+        >
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            {/* Business Name */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Business Name <span className="text-red-400">*</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <User className="h-5 w-5 text-slate-400" />
+                </div>
+                <Input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => handleChange('name', e.target.value)}
+                  className="pl-10 h-12 text-base rounded-xl border-slate-200 focus:border-cyan-500 focus:ring-cyan-500"
+                  placeholder="The Grand Restaurant"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Phone */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Phone Number <span className="text-red-400">*</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Phone className="h-5 w-5 text-slate-400" />
+                </div>
+                <Input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => handleChange('phone', e.target.value)}
+                  className="pl-10 h-12 text-base rounded-xl border-slate-200 focus:border-cyan-500 focus:ring-cyan-500"
+                  placeholder="+91 98765 43210"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Email (Optional) */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Email <span className="text-slate-400">(optional)</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Mail className="h-5 w-5 text-slate-400" />
+                </div>
+                <Input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleChange('email', e.target.value)}
+                  className="pl-10 h-12 text-base rounded-xl border-slate-200 focus:border-cyan-500 focus:ring-cyan-500"
+                  placeholder="business@example.com"
+                />
+              </div>
+            </div>
+
+            {/* Business Type */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Business Type <span className="text-red-400">*</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Briefcase className="h-5 w-5 text-slate-400" />
+                </div>
+                <select
+                  value={formData.businessType}
+                  onChange={(e) => handleChange('businessType', e.target.value)}
+                  className="w-full pl-10 h-12 text-base rounded-xl border border-slate-200 focus:border-cyan-500 focus:ring-cyan-500 bg-white appearance-none cursor-pointer"
+                  required
                 >
-                  <Phone className="w-4 h-4" />
-                  Phone
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setInputType('email'); setIdentifier(''); }}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                    inputType === 'email'
-                      ? 'bg-white text-cyan-700 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  <Mail className="w-4 h-4" />
-                  Email
-                </button>
-              </div>
-
-              <form className="space-y-4" onSubmit={handleSendOtp}>
-                {/* Business Name */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Business Name <span className="text-red-400">*</span>
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <User className="h-5 w-5 text-slate-400" />
-                    </div>
-                    <Input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="pl-10 h-12 text-base rounded-xl border-slate-200 focus:border-cyan-500 focus:ring-cyan-500"
-                      placeholder="The Grand Restaurant"
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Phone/Email */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    {inputType === 'phone' ? 'Phone Number' : 'Email Address'} <span className="text-red-400">*</span>
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      {inputType === 'phone' ? (
-                        <Phone className="h-5 w-5 text-slate-400" />
-                      ) : (
-                        <Mail className="h-5 w-5 text-slate-400" />
-                      )}
-                    </div>
-                    <Input
-                      type={inputType === 'phone' ? 'tel' : 'email'}
-                      value={identifier}
-                      onChange={(e) => setIdentifier(e.target.value)}
-                      className="pl-10 h-12 text-base rounded-xl border-slate-200 focus:border-cyan-500 focus:ring-cyan-500"
-                      placeholder={inputType === 'phone' ? '+91 99887 76655' : 'chef@restaurant.com'}
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Business Type */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Business Type <span className="text-red-400">*</span>
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Briefcase className="h-5 w-5 text-slate-400" />
-                    </div>
-                    <select
-                      value={businessType}
-                      onChange={(e) => setBusinessType(e.target.value)}
-                      className="w-full pl-10 h-12 text-base rounded-xl border border-slate-200 focus:border-cyan-500 focus:ring-cyan-500 bg-white appearance-none cursor-pointer"
-                      required
-                    >
-                      <option value="">Select business type...</option>
-                      {businessTypes.map((type) => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Delivery Address */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Delivery Address
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <MapPin className="h-5 w-5 text-slate-400" />
-                    </div>
-                    <Input
-                      type="text"
-                      value={deliveryAddress}
-                      onChange={(e) => setDeliveryAddress(e.target.value)}
-                      className="pl-10 h-12 text-base rounded-xl border-slate-200 focus:border-cyan-500 focus:ring-cyan-500"
-                      placeholder="Banjara Hills, Hyderabad"
-                    />
-                  </div>
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full h-12 bg-cyan-600 hover:bg-cyan-700 rounded-xl text-base font-semibold shadow-lg shadow-cyan-200 transition-all hover:shadow-cyan-300"
-                  disabled={isLoading || !identifier || !name || !businessType}
-                >
-                  {isLoading ? (
-                    <span className="flex items-center gap-2">
-                      <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      Sending OTP...
-                    </span>
-                  ) : (
-                    'Register & Send OTP'
-                  )}
-                </Button>
-              </form>
-
-              <div className="mt-5 flex items-center gap-2 p-3 bg-cyan-50 rounded-xl border border-cyan-100">
-                <Sparkles className="w-4 h-4 text-cyan-600 flex-shrink-0" />
-                <p className="text-xs text-cyan-700">
-                  Demo: OTP will be shown in a notification. No actual SMS/email is sent.
-                </p>
-              </div>
-
-              <div className="mt-6 text-center space-y-2">
-                <p className="text-sm text-slate-500">
-                  Already have an account?{' '}
-                  <Link to="/business/login" className="font-medium text-cyan-600 hover:text-cyan-500">
-                    Sign in
-                  </Link>
-                </p>
-                <p className="text-sm text-slate-500">
-                  I'm a Vendor?{' '}
-                  <Link to="/vendor/register" className="font-medium text-cyan-600 hover:text-cyan-500">
-                    Register here
-                  </Link>
-                </p>
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="otp"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
-              className="bg-white py-8 px-6 shadow-xl sm:rounded-2xl sm:px-10 border border-slate-100"
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  setStep('details');
-                  setOtpDigits(['', '', '', '', '', '']);
-                }}
-                className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-6 transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to details
-              </button>
-
-              <div className="text-center mb-6">
-                <div className="inline-flex items-center justify-center w-14 h-14 bg-cyan-100 rounded-full mb-3">
-                  <ShieldCheck className="w-7 h-7 text-cyan-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-slate-900">Verify Your {inputType === 'phone' ? 'Phone' : 'Email'}</h3>
-                <p className="text-sm text-slate-500 mt-1">
-                  We sent a 6-digit code to{' '}
-                  <span className="font-medium text-slate-700">{identifier}</span>
-                </p>
-              </div>
-
-              <form onSubmit={handleVerifyOtp}>
-                <div className="flex justify-center gap-2 sm:gap-3 mb-6">
-                  {otpDigits.map((digit, i) => (
-                    <input
-                      key={i}
-                      ref={(el) => { otpRefs.current[i] = el; }}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={6}
-                      value={digit}
-                      onChange={(e) => handleOtpChange(i, e.target.value)}
-                      onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                      onFocus={(e) => e.target.select()}
-                      className={`w-11 h-14 sm:w-12 sm:h-14 text-center text-xl font-bold rounded-xl border-2 outline-none transition-all ${
-                        digit
-                          ? 'border-cyan-500 bg-cyan-50 text-cyan-700'
-                          : 'border-slate-200 bg-white text-slate-900 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100'
-                      }`}
-                    />
+                  <option value="">Select business type...</option>
+                  {businessTypes.map((type) => (
+                    <option key={type} value={type}>{type}</option>
                   ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Delivery Address */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Delivery Address
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <MapPin className="h-5 w-5 text-slate-400" />
                 </div>
+                <Input
+                  type="text"
+                  value={formData.deliveryAddress}
+                  onChange={(e) => handleChange('deliveryAddress', e.target.value)}
+                  className="pl-10 h-12 text-base rounded-xl border-slate-200 focus:border-cyan-500 focus:ring-cyan-500"
+                  placeholder="Banjara Hills, Hyderabad"
+                />
+              </div>
+            </div>
 
-                <Button
-                  type="submit"
-                  className="w-full h-12 bg-cyan-600 hover:bg-cyan-700 rounded-xl text-base font-semibold shadow-lg shadow-cyan-200 transition-all hover:shadow-cyan-300"
-                  disabled={isLoading || otpDigits.join('').length !== 6}
-                >
-                  {isLoading ? (
-                    <span className="flex items-center gap-2">
-                      <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      Creating Account...
-                    </span>
-                  ) : (
-                    'Verify & Create Account'
-                  )}
-                </Button>
-              </form>
-
-              <div className="mt-4 text-center">
+            {/* Password */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Password <span className="text-red-400">*</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-slate-400" />
+                </div>
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  value={formData.password}
+                  onChange={(e) => handleChange('password', e.target.value)}
+                  className="pl-10 pr-10 h-12 text-base rounded-xl border-slate-200 focus:border-cyan-500 focus:ring-cyan-500"
+                  placeholder="Min 6 characters"
+                  required
+                />
                 <button
                   type="button"
-                  onClick={async () => {
-                    try {
-                      setIsLoading(true);
-                      const otp = await sendOtp(identifier.replace(/\s/g, ''), inputType);
-                      toast.success(`New OTP: ${otp}`, { duration: 15000, description: 'Use this OTP to verify' });
-                    } catch (err: any) {
-                      toast.error(err?.message || 'Failed to resend OTP');
-                    } finally {
-                      setIsLoading(false);
-                    }
-                  }}
-                  className="text-sm text-cyan-600 hover:text-cyan-500 font-medium"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
                 >
-                  Resend OTP
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
+            </div>
 
-              <div className="mt-4 flex items-center gap-2 p-3 bg-amber-50 rounded-xl border border-amber-100">
-                <Sparkles className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                <p className="text-xs text-amber-700">
-                  Demo: Use the OTP shown in the notification above.
-                </p>
+            {/* Confirm Password */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Confirm Password <span className="text-red-400">*</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-slate-400" />
+                </div>
+                <Input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  value={formData.confirmPassword}
+                  onChange={(e) => handleChange('confirmPassword', e.target.value)}
+                  className="pl-10 pr-10 h-12 text-base rounded-xl border-slate-200 focus:border-cyan-500 focus:ring-cyan-500"
+                  placeholder="Confirm your password"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                >
+                  {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full h-12 bg-cyan-600 hover:bg-cyan-700 rounded-xl text-base font-semibold shadow-lg shadow-cyan-200 transition-all hover:shadow-cyan-300 mt-2"
+              disabled={isLoading || !formData.name || !formData.phone || !formData.businessType || !formData.password || !formData.confirmPassword}
+            >
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Creating Account...
+                </span>
+              ) : (
+                'Create Account'
+              )}
+            </Button>
+          </form>
+
+          <div className="mt-6 text-center space-y-2">
+            <p className="text-sm text-slate-500">
+              Already have an account?{' '}
+              <Link to="/business/login" className="font-medium text-cyan-600 hover:text-cyan-500">
+                Sign in
+              </Link>
+            </p>
+            <p className="text-sm text-slate-500">
+              Are you a Vendor?{' '}
+              <Link to="/vendor/register" className="font-medium text-cyan-600 hover:text-cyan-500">
+                Register here
+              </Link>
+            </p>
+          </div>
+        </motion.div>
       </div>
     </div>
   );

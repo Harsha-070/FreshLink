@@ -4,6 +4,7 @@ import {
   Search, ChefHat, ShoppingCart, History, Settings
 } from 'lucide-react';
 import { DashboardHeader } from '@/components/layout/DashboardHeader';
+import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { useAuthStore } from '@/store/useStore';
 
 export function BusinessLayout() {
@@ -15,25 +16,31 @@ export function BusinessLayout() {
   }
 
   const navItems = [
+    { path: '/business/dashboard', icon: Search, label: 'Discover', exact: true },
+    { path: '/business/requirements', icon: ChefHat, label: 'Planner' },
+    { path: '/business/orders', icon: ShoppingCart, label: 'Orders' },
+    { path: '/business/history', icon: History, label: 'History' },
+  ];
+
+  const sidebarNavItems = [
     { path: '/business/dashboard', icon: Search, label: 'Discover Matches', exact: true },
     { path: '/business/requirements', icon: ChefHat, label: 'AI Meal Planner' },
     { path: '/business/orders', icon: ShoppingCart, label: 'Active Orders' },
     { path: '/business/history', icon: History, label: 'Order History' },
   ];
 
-  const initials = user.name ? user.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() : 'B';
-
   return (
     <div className="min-h-screen bg-slate-50 flex text-slate-900">
-      <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col hidden md:flex">
+      {/* Desktop Sidebar */}
+      <aside className="w-64 bg-slate-900 text-slate-300 flex-col hidden md:flex fixed left-0 top-0 bottom-0 z-40">
         <div className="p-6">
           <Link to="/">
             <h1 className="text-2xl font-bold text-cyan-400">FreshLink</h1>
           </Link>
           <p className="text-xs text-slate-500 mt-1">Buyer Portal</p>
         </div>
-        <nav className="flex-1 px-4 space-y-2">
-          {navItems.map((item) => {
+        <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
+          {sidebarNavItems.map((item) => {
             const isActive = item.exact
               ? location.pathname === item.path
               : location.pathname.startsWith(item.path);
@@ -63,16 +70,16 @@ export function BusinessLayout() {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <DashboardHeader
-          userInitials={initials}
-          userName={user.name}
-          userEmail={user.email || ''}
-        />
-        <div className="flex-1 overflow-auto p-8">
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col min-h-screen md:ml-64">
+        <DashboardHeader settingsPath="/business/settings" />
+        <div className="flex-1 overflow-auto p-4 md:p-8 pb-20 md:pb-8">
           <Outlet />
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav items={navItems} variant="business" />
     </div>
   );
 }

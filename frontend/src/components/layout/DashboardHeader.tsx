@@ -6,18 +6,18 @@ import { toast } from 'sonner';
 import { useAuthStore } from '@/store/useStore';
 
 interface DashboardHeaderProps {
-  userInitials: string;
-  userName: string;
-  userEmail: string;
+  settingsPath?: string;
 }
 
-export function DashboardHeader({ userInitials, userName, userEmail }: DashboardHeaderProps) {
+export function DashboardHeader({ settingsPath }: DashboardHeaderProps) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const navigate = useNavigate();
-  
+
   const profileRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
+
+  const { user, logout } = useAuthStore();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -32,8 +32,6 @@ export function DashboardHeader({ userInitials, userName, userEmail }: Dashboard
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const { logout } = useAuthStore();
-
   const handleLogout = () => {
     logout();
     toast.success('Logged out successfully');
@@ -45,9 +43,33 @@ export function DashboardHeader({ userInitials, userName, userEmail }: Dashboard
     setIsNotificationsOpen(false);
   };
 
+  // Get user initials
+  const getUserInitials = () => {
+    if (!user?.name) return 'U';
+    const names = user.name.split(' ');
+    if (names.length >= 2) {
+      return `${names[0][0]}${names[1][0]}`.toUpperCase();
+    }
+    return user.name.substring(0, 2).toUpperCase();
+  };
+
+  // Get settings link based on role
+  const getSettingsLink = () => {
+    if (settingsPath) return settingsPath;
+    return user?.role === 'vendor' ? '/vendor/settings' : '/business/settings';
+  };
+
+  // Get dashboard link based on role
+  const getDashboardLink = () => {
+    return user?.role === 'vendor' ? '/vendor/dashboard' : '/business/dashboard';
+  };
+
+  const userName = user?.name || 'User';
+  const userEmail = user?.email || user?.phone || '';
+
   return (
-    <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shrink-0">
-      <div className="flex items-center gap-2">
+    <header className="h-16 md:h-20 bg-white border-b border-slate-200 flex items-center justify-between px-3 md:px-8 shrink-0 sticky top-0 z-30">
+      <div className="flex items-center gap-2 flex-1 min-w-0">
         <button
           onClick={() => navigate(-1)}
           className="md:hidden p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors shrink-0"
@@ -55,20 +77,20 @@ export function DashboardHeader({ userInitials, userName, userEmail }: Dashboard
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-      <div className="flex items-center bg-slate-100 rounded-full px-4 py-2 w-full max-w-md">
-        <Search className="w-5 h-5 text-slate-400 mr-2 shrink-0" />
-        <input
-          type="text"
-          placeholder="Search orders, stock..."
-          className="bg-transparent border-none outline-none w-full text-sm"
-        />
-      </div>
+        <div className="flex items-center bg-slate-100 rounded-full px-3 md:px-4 py-2 flex-1 max-w-md">
+          <Search className="w-4 md:w-5 h-4 md:h-5 text-slate-400 mr-2 shrink-0" />
+          <input
+            type="text"
+            placeholder="Search..."
+            className="bg-transparent border-none outline-none w-full text-sm"
+          />
+        </div>
       </div>
 
       <div className="flex items-center space-x-2 md:space-x-4 ml-4">
         {/* Notifications */}
         <div className="relative" ref={notificationsRef}>
-          <button 
+          <button
             onClick={() => {
               setIsNotificationsOpen(!isNotificationsOpen);
               setIsProfileOpen(false);
@@ -78,7 +100,7 @@ export function DashboardHeader({ userInitials, userName, userEmail }: Dashboard
             <Bell className="w-6 h-6" />
             <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
           </button>
-          
+
           <AnimatePresence>
             {isNotificationsOpen && (
               <motion.div
@@ -107,7 +129,7 @@ export function DashboardHeader({ userInitials, userName, userEmail }: Dashboard
                   </div>
                 </div>
                 <div className="p-3 border-t border-slate-100 text-center bg-slate-50">
-                  <button 
+                  <button
                     onClick={handleMarkAllRead}
                     className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
                   >
@@ -121,7 +143,7 @@ export function DashboardHeader({ userInitials, userName, userEmail }: Dashboard
 
         {/* Profile */}
         <div className="relative" ref={profileRef}>
-          <button 
+          <button
             onClick={() => {
               setIsProfileOpen(!isProfileOpen);
               setIsNotificationsOpen(false);
@@ -129,7 +151,7 @@ export function DashboardHeader({ userInitials, userName, userEmail }: Dashboard
             className="flex items-center gap-2 p-1 pr-2 md:pr-3 rounded-full border border-slate-200 hover:border-slate-300 bg-slate-50 transition-all"
           >
             <div className="w-8 h-8 md:w-10 md:h-10 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-700 font-bold border border-emerald-200 text-sm md:text-base shrink-0">
-              {userInitials}
+              {getUserInitials()}
             </div>
             <span className="text-sm font-medium text-slate-700 hidden md:block">{userName}</span>
           </button>
@@ -146,17 +168,30 @@ export function DashboardHeader({ userInitials, userName, userEmail }: Dashboard
                 <div className="p-4 border-b border-slate-100 bg-slate-50">
                   <p className="font-semibold text-slate-800">{userName}</p>
                   <p className="text-sm text-slate-500 truncate">{userEmail}</p>
+                  {user?.role && (
+                    <span className="inline-block mt-1 text-xs px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full capitalize">
+                      {user.role}
+                    </span>
+                  )}
                 </div>
                 <div className="p-2">
-                  <Link to="#" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors">
-                    <User className="w-4 h-4" /> My Profile
+                  <Link
+                    to={getDashboardLink()}
+                    onClick={() => setIsProfileOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                  >
+                    <User className="w-4 h-4" /> My Dashboard
                   </Link>
-                  <Link to="#" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors">
+                  <Link
+                    to={getSettingsLink()}
+                    onClick={() => setIsProfileOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                  >
                     <Settings className="w-4 h-4" /> Settings
                   </Link>
                 </div>
                 <div className="p-2 border-t border-slate-100">
-                  <button 
+                  <button
                     onClick={handleLogout}
                     className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
                   >

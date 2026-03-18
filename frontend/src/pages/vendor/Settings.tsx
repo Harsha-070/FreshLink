@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useAuthStore } from '../../store/useStore';
-import { api } from '../../lib/api';
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -16,9 +15,8 @@ const fadeUp = {
 };
 
 export default function VendorSettings() {
-  const { user, setCurrentUser } = useAuthStore();
+  const { user, updateProfile, isLoading: storeLoading } = useAuthStore();
   const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -31,36 +29,18 @@ export default function VendorSettings() {
   });
 
   useEffect(() => {
-    // Seed from store first
     if (user) {
-      setFormData((prev) => ({
-        ...prev,
+      setFormData({
         name: user.name || '',
         email: user.email || '',
         phone: user.phone || '',
-        upiId: (user as any).upiId || '',
-        shopName: (user as any).shopName || '',
-        shopAddress: (user as any).shopAddress || '',
-        shopDescription: (user as any).shopDescription || '',
-      }));
+        upiId: user.upiId || '',
+        shopName: user.shopName || '',
+        shopAddress: user.shopAddress || '',
+        shopDescription: user.shopDescription || '',
+      });
     }
-    // Then fetch fresh data
-    api.getMe()
-      .then((data: any) => {
-        const u = data.user || data;
-        setFormData({
-          name: u.name || '',
-          email: u.email || '',
-          phone: u.phone || '',
-          upiId: u.upiId || '',
-          shopName: u.shopName || '',
-          shopAddress: u.shopAddress || '',
-          shopDescription: u.shopDescription || '',
-        });
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  }, [user]);
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -74,7 +54,7 @@ export default function VendorSettings() {
     }
     setSaving(true);
     try {
-      const data = await api.updateProfile({
+      await updateProfile({
         name: formData.name,
         phone: formData.phone,
         email: formData.email,
@@ -83,8 +63,6 @@ export default function VendorSettings() {
         shopAddress: formData.shopAddress,
         shopDescription: formData.shopDescription,
       });
-      const updatedUser = data.user || data;
-      setCurrentUser({ ...user!, ...updatedUser });
       toast.success('Profile updated successfully');
     } catch (err: any) {
       console.error('Failed to save settings:', err);
@@ -93,15 +71,6 @@ export default function VendorSettings() {
       setSaving(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <Loader2 className="w-7 h-7 animate-spin text-emerald-600" />
-        <span className="ml-3 text-slate-500 font-medium">Loading settings...</span>
-      </div>
-    );
-  }
 
   return (
     <motion.div
@@ -316,7 +285,7 @@ export default function VendorSettings() {
             <Button
               type="submit"
               className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl shadow-sm"
-              disabled={saving}
+              disabled={saving || storeLoading}
             >
               {saving ? (
                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</>

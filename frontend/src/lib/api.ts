@@ -20,22 +20,33 @@ async function request(endpoint: string, options: RequestInit = {}) {
 }
 
 export const api = {
-  // Auth - OTP flow
-  sendOtp: (identifier: string, type: 'phone' | 'email') =>
-    request('/auth/send-otp', { method: 'POST', body: JSON.stringify({ identifier, type }) }),
-  verifyOtp: (identifier: string, otp: string, role: string, name?: string) =>
-    request('/auth/verify-otp', { method: 'POST', body: JSON.stringify({ identifier, otp, role, name }) }),
-  demoLogin: (email: string, password: string) =>
-    request('/auth/demo-login', { method: 'POST', body: JSON.stringify({ email, password }) }),
-  getMe: () => request('/auth/me'),
-  forgotPassword: (identifier: string) =>
-    request('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ identifier }) }),
-  resetPassword: (identifier: string, otp: string, newPassword: string) =>
-    request('/auth/reset-password', { method: 'POST', body: JSON.stringify({ identifier, otp, newPassword }) }),
+  // Auth - Phone + Password
+  login: (phone: string, password: string, role: 'vendor' | 'business') =>
+    request('/auth/login', { method: 'POST', body: JSON.stringify({ phone, password, role }) }),
 
-  // Legacy auth (kept for backward compatibility)
-  register: (body: any) => request('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
-  login: (body: any) => request('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
+  register: (body: {
+    name: string;
+    phone: string;
+    password: string;
+    role: 'vendor' | 'business';
+    email?: string;
+    shopName?: string;
+    shopAddress?: string;
+    shopDescription?: string;
+    upiId?: string;
+    businessType?: string;
+    deliveryAddress?: string;
+  }) => request('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
+
+  checkPhone: (phone: string, role?: string) =>
+    request('/auth/check-phone', { method: 'POST', body: JSON.stringify({ phone, role }) }),
+
+  getMe: () => request('/auth/me'),
+
+  updateProfile: (body: any) => request('/auth/profile', { method: 'PUT', body: JSON.stringify(body) }),
+
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
 
   // Stock
   getMyStock: () => request('/stock'),
@@ -72,9 +83,43 @@ export const api = {
   // Cold Storage
   getColdStorages: (lat?: number, lng?: number) => request(`/cold-storage?lat=${lat || 17.385}&lng=${lng || 78.4867}`),
 
-  // Profile
-  updateProfile: (body: any) => request('/auth/profile', { method: 'PUT', body: JSON.stringify(body) }),
-
   // Produce catalog
   getProduce: (params?: string) => request(`/produce${params ? `?${params}` : ''}`),
+
+  // Logistics (Instakart)
+  getLogisticsPartners: (lat?: number, lng?: number, vehicleType?: string) =>
+    request(`/logistics/partners?lat=${lat || 17.385}&lng=${lng || 78.4867}${vehicleType ? `&vehicleType=${vehicleType}` : ''}`),
+  getDeliveryEstimate: (body: { pickupLocation: any; dropLocation: any; weightKg?: number; preferredVehicle?: string }) =>
+    request('/logistics/estimate', { method: 'POST', body: JSON.stringify(body) }),
+  bookDelivery: (body: any) => request('/logistics/book', { method: 'POST', body: JSON.stringify(body) }),
+  trackDelivery: (bookingId: string) => request(`/logistics/track/${bookingId}`),
+  getLogisticsPricing: () => request('/logistics/pricing'),
+
+  // Notifications
+  getNotifications: (unreadOnly?: boolean, limit?: number) =>
+    request(`/notifications?unreadOnly=${unreadOnly || false}${limit ? `&limit=${limit}` : ''}`),
+  markNotificationRead: (id: string) => request(`/notifications/${id}/read`, { method: 'PUT' }),
+  markAllNotificationsRead: () => request('/notifications/read-all', { method: 'PUT' }),
+  deleteNotification: (id: string) => request(`/notifications/${id}`, { method: 'DELETE' }),
+  getNotificationPreferences: () => request('/notifications/preferences'),
+
+  // Payments
+  createPaymentOrder: (orderId: string, amount: number, method?: string) =>
+    request('/payments/create-order', { method: 'POST', body: JSON.stringify({ orderId, amount, method }) }),
+  verifyUPIPayment: (paymentId: string, upiTransactionId?: string) =>
+    request('/payments/verify', { method: 'POST', body: JSON.stringify({ paymentId, upiTransactionId }) }),
+  createRazorpayOrder: (orderId: string, amount: number) =>
+    request('/payments/razorpay/create', { method: 'POST', body: JSON.stringify({ orderId, amount }) }),
+  verifyRazorpayPayment: (body: { paymentId: string; razorpay_payment_id?: string; razorpay_order_id?: string; razorpay_signature?: string }) =>
+    request('/payments/razorpay/verify', { method: 'POST', body: JSON.stringify(body) }),
+  getPaymentStatus: (orderId: string) => request(`/payments/${orderId}`),
+  getPaymentHistory: () => request('/payments'),
+  requestRefund: (paymentId: string, reason?: string) =>
+    request('/payments/refund', { method: 'POST', body: JSON.stringify({ paymentId, reason }) }),
+
+  // Areas
+  getServiceAreas: () => request('/areas'),
+
+  // Health
+  getHealth: () => request('/health'),
 };

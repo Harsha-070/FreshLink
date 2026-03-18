@@ -6,12 +6,15 @@
     "dev": "concurrently \"npm run backend:dev\" \"npm run frontend:dev\"",
     "frontend:dev": "cd frontend && npx vite",
     "frontend:build": "cd frontend && npx vite build",
+    "frontend:preview": "cd frontend && npx vite preview",
     "frontend:install": "cd frontend && npm install",
     "backend:dev": "cd backend && node --watch server.js",
     "backend:start": "cd backend && node server.js",
     "backend:install": "cd backend && npm install",
     "install:all": "npm run frontend:install && npm run backend:install",
-    "start": "concurrently \"npm run backend:start\" \"npm run frontend:dev\""
+    "build": "npm run frontend:build",
+    "start": "cd backend && NODE_ENV=production node server.js",
+    "start:dev": "concurrently \"npm run backend:dev\" \"npm run frontend:dev\""
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

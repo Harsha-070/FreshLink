@@ -2,171 +2,130 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { generateToken, authenticateToken } = require('../middleware/auth');
 const { db, scheduleSave } = require('../data/db');
-const { sendOtp: deliverOtp } = require('../services/otpService');
 
 const router = express.Router();
 
-// In-memory OTP store: { identifier: { otp, expiresAt } }
-const otpStore = new Map();
-
-function generateOtp() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
-// POST /api/auth/send-otp
-router.post('/send-otp', async (req, res) => {
+// POST /api/auth/login - Login with phone and password
+router.post('/login', async (req, res) => {
   try {
-    const { identifier, type } = req.body;
-    if (!identifier || !type) {
-      return res.status(400).json({ error: 'identifier and type are required' });
-    }
-    const otp = generateOtp();
-    otpStore.set(identifier, { otp, expiresAt: Date.now() + 5 * 60 * 1000 });
-
-    // Send OTP via email/SMS
-    const result = await deliverOtp(identifier, type, otp);
-
-    // If delivery failed (no Gmail/SMS configured), return OTP in response for demo
-    const response = { message: 'OTP sent' };
-    if (!result.sent) {
-      response.otp = otp; // Fallback: show in UI for demo
-      response.note = 'OTP shown in response (configure GMAIL_USER & GMAIL_APP_PASSWORD in .env to send real emails)';
+    const { phone, password, role } = req.body;
+    if (!phone || !password) {
+      return res.status(400).json({ error: 'Phone number and password are required' });
     }
 
-    res.json(response);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to send OTP' });
-  }
-});
-
-// POST /api/auth/verify-otp
-router.post('/verify-otp', (req, res) => {
-  try {
-    const { identifier, otp, role, name } = req.body;
-    if (!identifier || !otp || !role) {
-      return res.status(400).json({ error: 'identifier, otp, and role are required' });
-    }
-
-    const stored = otpStore.get(identifier);
-    if (!stored) return res.status(400).json({ error: 'No OTP found. Please request a new one.' });
-    if (Date.now() > stored.expiresAt) {
-      otpStore.delete(identifier);
-      return res.status(400).json({ error: 'OTP expired. Please request a new one.' });
-    }
-    if (stored.otp !== otp) return res.status(400).json({ error: 'Invalid OTP' });
-
-    otpStore.delete(identifier);
-
-    // Find or create user
-    let user = db.users.find(
-      (u) => (u.phone === identifier || u.email === identifier) && u.role === role
-    );
-
+    const user = db.users.find((u) => u.phone === phone && (!role || u.role === role));
     if (!user) {
-      const isEmail = identifier.includes('@');
-      user = {
-        id: `${role}-${Date.now()}`,
-        name: name || (isEmail ? identifier.split('@')[0] : `New ${role === 'vendor' ? 'Vendor' : 'Business'}`),
-        email: isEmail ? identifier : '',
-        phone: isEmail ? '' : identifier,
-        password: '',
-        role,
-        location: { lat: 17.3850, lng: 78.4867, address: 'Hyderabad' },
-        rating: role === 'vendor' ? 4.0 : undefined,
-        totalOrders: 0,
-        joinedDate: new Date().toISOString().split('T')[0],
-        businessType: role === 'business' ? 'Restaurant' : undefined,
-      };
-      db.users.push(user);
-      scheduleSave();
+      return res.status(401).json({ error: 'Invalid phone number or password' });
     }
-
-    const token = generateToken(user);
-    const { password: _, ...safe } = user;
-    res.json({ message: 'OTP verified', token, user: safe });
-  } catch (err) {
-    res.status(500).json({ error: 'OTP verification failed' });
-  }
-});
-
-// POST /api/auth/demo-login
-router.post('/demo-login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
-
-    const user = db.users.find((u) => u.email === email);
-    if (!user) return res.status(401).json({ error: 'Invalid email or password' });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(401).json({ error: 'Invalid email or password' });
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid phone number or password' });
+    }
 
     const token = generateToken(user);
     const { password: _, ...safe } = user;
     res.json({ message: 'Login successful', token, user: safe });
   } catch (err) {
+    console.error('Login error:', err);
     res.status(500).json({ error: 'Login failed' });
   }
 });
 
-// POST /api/auth/forgot-password - Send OTP for password reset
-router.post('/forgot-password', async (req, res) => {
+// POST /api/auth/register - Register with phone, password and details
+router.post('/register', async (req, res) => {
   try {
-    const { identifier } = req.body;
-    if (!identifier) return res.status(400).json({ error: 'Email or phone is required' });
+    const {
+      name,
+      phone,
+      password,
+      role,
+      email,
+      // Vendor specific fields
+      shopName,
+      shopAddress,
+      shopDescription,
+      upiId,
+      // Business specific fields
+      businessType,
+      deliveryAddress
+    } = req.body;
 
-    const user = db.users.find((u) => u.email === identifier || u.phone === identifier);
-    if (!user) return res.status(404).json({ error: 'No account found with this email/phone' });
-
-    const otp = generateOtp();
-    otpStore.set(`reset-${identifier}`, { otp, expiresAt: Date.now() + 5 * 60 * 1000, userId: user.id });
-
-    const type = identifier.includes('@') ? 'email' : 'phone';
-    const result = await deliverOtp(identifier, type, otp);
-
-    const response = { message: 'Reset OTP sent' };
-    if (!result.sent) {
-      response.otp = otp;
-    }
-    res.json(response);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to send reset OTP' });
-  }
-});
-
-// POST /api/auth/reset-password - Verify OTP and set new password
-router.post('/reset-password', async (req, res) => {
-  try {
-    const { identifier, otp, newPassword } = req.body;
-    if (!identifier || !otp || !newPassword) {
-      return res.status(400).json({ error: 'identifier, otp, and newPassword are required' });
+    // Validate required fields
+    if (!name || !phone || !password || !role) {
+      return res.status(400).json({ error: 'Name, phone, password, and role are required' });
     }
 
-    const stored = otpStore.get(`reset-${identifier}`);
-    if (!stored) return res.status(400).json({ error: 'No reset OTP found' });
-    if (Date.now() > stored.expiresAt) {
-      otpStore.delete(`reset-${identifier}`);
-      return res.status(400).json({ error: 'OTP expired' });
+    // Validate phone format
+    const cleanPhone = phone.replace(/\s/g, '');
+    if (!cleanPhone.match(/^\+?\d{10,13}$/)) {
+      return res.status(400).json({ error: 'Please enter a valid phone number' });
     }
-    if (stored.otp !== otp) return res.status(400).json({ error: 'Invalid OTP' });
 
-    otpStore.delete(`reset-${identifier}`);
+    // Validate password length
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
 
-    const user = db.users.find((u) => u.id === stored.userId);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    // Check if phone already exists for this role
+    if (db.users.find((u) => u.phone === cleanPhone && u.role === role)) {
+      return res.status(409).json({ error: 'An account with this phone number already exists' });
+    }
 
-    user.password = await bcrypt.hash(newPassword, 10);
+    // Create new user
+    const newUser = {
+      id: `${role}-${Date.now()}`,
+      name,
+      phone: cleanPhone,
+      email: email || '',
+      password: await bcrypt.hash(password, 10),
+      role,
+      location: { lat: 17.385, lng: 78.4867, address: shopAddress || deliveryAddress || 'Hyderabad' },
+      joinedDate: new Date().toISOString().split('T')[0],
+      totalOrders: 0,
+    };
+
+    // Add role-specific fields
+    if (role === 'vendor') {
+      newUser.rating = 4.0;
+      newUser.shopName = shopName || '';
+      newUser.shopAddress = shopAddress || '';
+      newUser.shopDescription = shopDescription || '';
+      newUser.upiId = upiId || '';
+    } else if (role === 'business') {
+      newUser.businessType = businessType || 'Restaurant';
+      newUser.deliveryAddress = deliveryAddress || '';
+    }
+
+    db.users.push(newUser);
     scheduleSave();
 
-    const token = generateToken(user);
-    const { password: _, ...safe } = user;
-    res.json({ message: 'Password reset successful', token, user: safe });
+    const token = generateToken(newUser);
+    const { password: _, ...safe } = newUser;
+    res.status(201).json({ message: 'Registration successful', token, user: safe });
   } catch (err) {
-    res.status(500).json({ error: 'Password reset failed' });
+    console.error('Registration error:', err);
+    res.status(500).json({ error: 'Registration failed' });
   }
 });
 
-// GET /api/auth/me
+// POST /api/auth/check-phone - Check if phone exists
+router.post('/check-phone', (req, res) => {
+  try {
+    const { phone, role } = req.body;
+    if (!phone) {
+      return res.status(400).json({ error: 'Phone number is required' });
+    }
+
+    const cleanPhone = phone.replace(/\s/g, '');
+    const exists = db.users.some((u) => u.phone === cleanPhone && (!role || u.role === role));
+    res.json({ exists });
+  } catch (err) {
+    res.status(500).json({ error: 'Check failed' });
+  }
+});
+
+// GET /api/auth/me - Get current user
 router.get('/me', authenticateToken, (req, res) => {
   const user = db.users.find((u) => u.id === req.user.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
@@ -174,50 +133,22 @@ router.get('/me', authenticateToken, (req, res) => {
   res.json({ user: safe });
 });
 
-// Legacy endpoints
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password, role } = req.body;
-    if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
-    const user = db.users.find((u) => u.email === email && (!role || u.role === role));
-    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(401).json({ error: 'Invalid credentials' });
-    const token = generateToken(user);
-    const { password: _, ...safe } = user;
-    res.json({ message: 'Login successful', token, user: safe });
-  } catch (err) {
-    res.status(500).json({ error: 'Login failed' });
-  }
-});
-
-router.post('/register', async (req, res) => {
-  try {
-    const { name, email, phone, password, role, location, businessType } = req.body;
-    if (!name || !email || !password || !role) return res.status(400).json({ error: 'Missing fields' });
-    if (db.users.find((u) => u.email === email)) return res.status(409).json({ error: 'Email already exists' });
-    const newUser = {
-      id: `${role}-${Date.now()}`, name, email, phone: phone || '', password: await bcrypt.hash(password, 10),
-      role, location: location || { lat: 17.385, lng: 78.4867, address: 'Hyderabad' },
-      businessType: businessType || null, rating: role === 'vendor' ? 4.0 : undefined,
-      totalOrders: 0, joinedDate: new Date().toISOString().split('T')[0],
-    };
-    db.users.push(newUser);
-    scheduleSave();
-    const token = generateToken(newUser);
-    const { password: _, ...safe } = newUser;
-    res.status(201).json({ message: 'Registration successful', token, user: safe });
-  } catch (err) {
-    res.status(500).json({ error: 'Registration failed' });
-  }
-});
-
 // PUT /api/auth/profile - Update user profile
 router.put('/profile', authenticateToken, (req, res) => {
   const user = db.users.find((u) => u.id === req.user.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
 
-  const { name, phone, email, upiId, shopName, shopAddress, shopDescription, businessType, deliveryAddress } = req.body;
+  const {
+    name,
+    phone,
+    email,
+    upiId,
+    shopName,
+    shopAddress,
+    shopDescription,
+    businessType,
+    deliveryAddress
+  } = req.body;
 
   if (name) user.name = name;
   if (phone) user.phone = phone;
@@ -232,6 +163,36 @@ router.put('/profile', authenticateToken, (req, res) => {
   scheduleSave();
   const { password: _, ...safe } = user;
   res.json({ message: 'Profile updated', user: safe });
+});
+
+// POST /api/auth/change-password - Change password
+router.post('/change-password', authenticateToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+
+    const user = db.users.find((u) => u.id === req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    scheduleSave();
+
+    res.json({ message: 'Password changed successfully' });
+  } catch (err) {
+    console.error('Change password error:', err);
+    res.status(500).json({ error: 'Failed to change password' });
+  }
 });
 
 module.exports = router;

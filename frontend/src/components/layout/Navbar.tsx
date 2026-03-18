@@ -1,20 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Leaf, ChevronRight, Bell, User, LogOut, Settings } from 'lucide-react';
+import { Menu, X, Leaf, Bell, User, LogOut, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { useAuthStore } from '@/store/useStore';
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // Simulated auth state
   const location = useLocation();
-  
+  const navigate = useNavigate();
+
   const profileRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
+
+  const { user, isAuthenticated, logout } = useAuthStore();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -40,14 +43,35 @@ export function Navbar() {
   const isHome = location.pathname === '/';
 
   const handleLogout = () => {
-    setIsLoggedIn(false);
+    logout();
     setIsProfileOpen(false);
     toast.success('Logged out successfully');
+    navigate('/');
   };
 
   const handleMarkAllRead = () => {
     toast.success('All notifications marked as read');
     setIsNotificationsOpen(false);
+  };
+
+  // Get user initials
+  const getUserInitials = () => {
+    if (!user?.name) return 'U';
+    const names = user.name.split(' ');
+    if (names.length >= 2) {
+      return `${names[0][0]}${names[1][0]}`.toUpperCase();
+    }
+    return user.name.substring(0, 2).toUpperCase();
+  };
+
+  // Get dashboard link based on role
+  const getDashboardLink = () => {
+    return user?.role === 'vendor' ? '/vendor/dashboard' : '/business/dashboard';
+  };
+
+  // Get settings link based on role
+  const getSettingsLink = () => {
+    return user?.role === 'vendor' ? '/vendor/settings' : '/business/settings';
   };
 
   return (
@@ -57,8 +81,8 @@ export function Navbar() {
         animate={{ y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          isScrolled 
-            ? 'bg-slate-950/80 backdrop-blur-md border-b border-white/10 py-3' 
+          isScrolled
+            ? 'bg-slate-950/80 backdrop-blur-md border-b border-white/10 py-3'
             : 'bg-transparent py-5'
         }`}
       >
@@ -88,17 +112,21 @@ export function Navbar() {
                 </Link>
                 <div className="h-4 w-px bg-white/20" />
                 <Link to="/marketplace" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">Marketplace</Link>
-                <Link to="/vendor/login" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">Vendor</Link>
-                <Link to="/business/login" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">Business</Link>
+                {!isAuthenticated && (
+                  <>
+                    <Link to="/vendor/login" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">Vendor</Link>
+                    <Link to="/business/login" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">Business</Link>
+                  </>
+                )}
                 <div className="h-4 w-px bg-white/20" />
               </>
             )}
 
-            {isLoggedIn ? (
+            {isAuthenticated && user ? (
               <div className="flex items-center gap-4">
                 {/* Notifications */}
                 <div className="relative" ref={notificationsRef}>
-                  <button 
+                  <button
                     onClick={() => {
                       setIsNotificationsOpen(!isNotificationsOpen);
                       setIsProfileOpen(false);
@@ -108,7 +136,7 @@ export function Navbar() {
                     <Bell className="w-5 h-5" />
                     <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full" />
                   </button>
-                  
+
                   <AnimatePresence>
                     {isNotificationsOpen && (
                       <motion.div
@@ -137,7 +165,7 @@ export function Navbar() {
                           </div>
                         </div>
                         <div className="p-3 border-t border-slate-800 text-center">
-                          <button 
+                          <button
                             onClick={handleMarkAllRead}
                             className="text-sm text-emerald-400 hover:text-emerald-300 font-medium"
                           >
@@ -151,7 +179,7 @@ export function Navbar() {
 
                 {/* Profile */}
                 <div className="relative" ref={profileRef}>
-                  <button 
+                  <button
                     onClick={() => {
                       setIsProfileOpen(!isProfileOpen);
                       setIsNotificationsOpen(false);
@@ -159,9 +187,9 @@ export function Navbar() {
                     className="flex items-center gap-2 p-1 pr-3 rounded-full border border-slate-700 hover:border-slate-500 bg-slate-800/50 transition-all"
                   >
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center text-white font-bold text-sm">
-                      JD
+                      {getUserInitials()}
                     </div>
-                    <span className="text-sm font-medium text-slate-200">John Doe</span>
+                    <span className="text-sm font-medium text-slate-200">{user.name}</span>
                   </button>
 
                   <AnimatePresence>
@@ -174,19 +202,30 @@ export function Navbar() {
                         className="absolute right-0 mt-2 w-64 bg-slate-900 border border-slate-800 rounded-xl shadow-xl overflow-hidden"
                       >
                         <div className="p-4 border-b border-slate-800">
-                          <p className="font-semibold text-white">John Doe</p>
-                          <p className="text-sm text-slate-400 truncate">john.doe@example.com</p>
+                          <p className="font-semibold text-white">{user.name}</p>
+                          <p className="text-sm text-slate-400 truncate">{user.email || user.phone}</p>
+                          <span className="inline-block mt-1 text-xs px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full capitalize">
+                            {user.role}
+                          </span>
                         </div>
                         <div className="p-2">
-                          <Link to="/business/dashboard" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-300 hover:text-white hover:bg-slate-800 transition-colors">
-                            <User className="w-4 h-4" /> My Profile
+                          <Link
+                            to={getDashboardLink()}
+                            onClick={() => setIsProfileOpen(false)}
+                            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                          >
+                            <User className="w-4 h-4" /> My Dashboard
                           </Link>
-                          <Link to="/business/dashboard" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-300 hover:text-white hover:bg-slate-800 transition-colors">
+                          <Link
+                            to={getSettingsLink()}
+                            onClick={() => setIsProfileOpen(false)}
+                            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                          >
                             <Settings className="w-4 h-4" /> Settings
                           </Link>
                         </div>
                         <div className="p-2 border-t border-slate-800">
-                          <button 
+                          <button
                             onClick={handleLogout}
                             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-colors"
                           >
@@ -215,7 +254,7 @@ export function Navbar() {
           </div>
 
           {/* Mobile Menu Toggle */}
-          <button 
+          <button
             className="md:hidden text-slate-300 hover:text-white p-2"
             onClick={() => setIsMobileMenuOpen(true)}
           >
@@ -234,7 +273,7 @@ export function Navbar() {
             className="fixed inset-0 z-[60] bg-slate-950/95 backdrop-blur-xl md:hidden"
           >
             <div className="p-6 flex justify-end">
-              <button 
+              <button
                 className="text-slate-300 hover:text-white p-2"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
@@ -242,44 +281,44 @@ export function Navbar() {
               </button>
             </div>
             <div className="flex flex-col items-center gap-8 pt-12">
-              {isLoggedIn && (
+              {isAuthenticated && user && (
                 <div className="flex items-center gap-4 mb-4 pb-8 border-b border-slate-800 w-full justify-center">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center text-white font-bold text-lg">
-                    JD
+                    {getUserInitials()}
                   </div>
                   <div className="text-left">
-                    <p className="font-semibold text-white">John Doe</p>
-                    <p className="text-sm text-slate-400">john.doe@example.com</p>
+                    <p className="font-semibold text-white">{user.name}</p>
+                    <p className="text-sm text-slate-400">{user.email || user.phone}</p>
                   </div>
                 </div>
               )}
-              
-              <Link 
-                to="/" 
+
+              <Link
+                to="/"
                 className="text-2xl font-bold text-white"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Home
               </Link>
-              <Link 
-                to="/marketplace" 
+              <Link
+                to="/marketplace"
                 className="text-2xl font-bold text-white"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Marketplace
               </Link>
-              
-              {!isLoggedIn ? (
+
+              {!isAuthenticated ? (
                 <>
-                  <Link 
-                    to="/vendor/login" 
+                  <Link
+                    to="/vendor/login"
                     className="text-2xl font-bold text-white"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     Vendor Portal
                   </Link>
-                  <Link 
-                    to="/business/login" 
+                  <Link
+                    to="/business/login"
                     className="text-2xl font-bold text-white"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
@@ -288,14 +327,21 @@ export function Navbar() {
                 </>
               ) : (
                 <>
-                  <Link 
-                    to="/business/dashboard" 
+                  <Link
+                    to={getDashboardLink()}
                     className="text-2xl font-bold text-white"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     My Dashboard
                   </Link>
-                  <button 
+                  <Link
+                    to={getSettingsLink()}
+                    className="text-2xl font-bold text-white"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Settings
+                  </Link>
+                  <button
                     onClick={() => {
                       handleLogout();
                       setIsMobileMenuOpen(false);

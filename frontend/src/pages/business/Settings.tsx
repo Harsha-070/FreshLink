@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Save, Loader2, Building2, Mail, Phone, MapPin, Briefcase, Shield, User
@@ -9,20 +9,29 @@ import { toast } from 'sonner';
 import { useAuthStore } from '../../store/useStore';
 
 export default function BusinessSettings() {
-  const { user } = useAuthStore();
+  const { user, updateProfile, isLoading: storeLoading } = useAuthStore();
   const [saving, setSaving] = useState(false);
 
   const [formData, setFormData] = useState({
-    businessName: user?.name || '',
-    businessType: user?.businessType || '',
-    email: user?.email || '',
-    phone: user?.phone || '',
-    deliveryAddress: user?.location
-      ? typeof user.location === 'string'
-        ? user.location
-        : user.location.address || ''
-      : '',
+    businessName: '',
+    businessType: '',
+    email: '',
+    phone: '',
+    deliveryAddress: '',
   });
+
+  // Initialize form data from user
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        businessName: user.name || '',
+        businessType: user.businessType || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        deliveryAddress: user.deliveryAddress || (user.location?.address || ''),
+      });
+    }
+  }, [user]);
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -32,8 +41,13 @@ export default function BusinessSettings() {
     e.preventDefault();
     try {
       setSaving(true);
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      await updateProfile({
+        name: formData.businessName,
+        businessType: formData.businessType,
+        email: formData.email,
+        phone: formData.phone,
+        deliveryAddress: formData.deliveryAddress,
+      });
       toast.success('Settings saved successfully');
     } catch (err: any) {
       toast.error(err.message || 'Failed to save settings');
@@ -56,7 +70,7 @@ export default function BusinessSettings() {
       label: 'Business Type',
       icon: <Briefcase className="w-4 h-4" />,
       type: 'select',
-      options: ['Restaurant', 'Hotel', 'Cafe', 'Catering', 'Juice Bar', 'Cloud Kitchen', 'Other'],
+      options: ['Restaurant', 'Hotel', 'Cafe', 'Catering', 'Juice Bar', 'Cloud Kitchen', 'Mess/Canteen', 'Bakery', 'Other'],
       value: formData.businessType,
     },
     {
@@ -102,7 +116,7 @@ export default function BusinessSettings() {
       <Card className="border-slate-200">
         <CardContent className="p-6">
           <div className="flex items-center gap-5">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-emerald-200">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-cyan-200">
               {(user?.name || 'B').charAt(0).toUpperCase()}
             </div>
             <div>
@@ -110,7 +124,7 @@ export default function BusinessSettings() {
               <div className="flex items-center gap-3 text-sm text-slate-500 mt-0.5">
                 <span className="flex items-center gap-1">
                   <Shield className="w-3.5 h-3.5" />
-                  {user?.role === 'business' ? 'Business Account' : user?.role || 'User'}
+                  Business Account
                 </span>
                 {user?.businessType && (
                   <span className="flex items-center gap-1">
@@ -128,7 +142,7 @@ export default function BusinessSettings() {
       <Card className="border-slate-200">
         <CardContent className="p-6">
           <div className="flex items-center gap-2 mb-6">
-            <User className="w-5 h-5 text-emerald-600" />
+            <User className="w-5 h-5 text-cyan-600" />
             <h3 className="text-lg font-bold text-slate-900">Business Profile</h3>
           </div>
 
@@ -145,11 +159,11 @@ export default function BusinessSettings() {
                     id={field.id}
                     value={field.value}
                     onChange={(e) => handleChange(field.id, e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-shadow"
+                    className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-shadow"
                   >
                     <option value="">Select type...</option>
                     {field.options?.map((opt) => (
-                      <option key={opt} value={opt.toLowerCase()}>
+                      <option key={opt} value={opt}>
                         {opt}
                       </option>
                     ))}
@@ -161,7 +175,7 @@ export default function BusinessSettings() {
                     onChange={(e) => handleChange(field.id, e.target.value)}
                     placeholder={field.placeholder}
                     rows={3}
-                    className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-shadow resize-none"
+                    className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-shadow resize-none"
                   />
                 ) : (
                   <input
@@ -170,7 +184,7 @@ export default function BusinessSettings() {
                     value={field.value}
                     onChange={(e) => handleChange(field.id, e.target.value)}
                     placeholder={field.placeholder}
-                    className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-shadow"
+                    className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-shadow"
                   />
                 )}
               </div>
@@ -179,8 +193,8 @@ export default function BusinessSettings() {
             <div className="pt-4 border-t border-slate-100 flex justify-end">
               <Button
                 type="submit"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-8"
-                disabled={saving}
+                className="bg-cyan-600 hover:bg-cyan-700 text-white px-8"
+                disabled={saving || storeLoading}
               >
                 {saving ? (
                   <>
