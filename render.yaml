@@ -7,13 +7,12 @@ services:
     env: node
     region: oregon
     plan: free
-    buildCommand: npm run install:all && npm run build
-    startCommand: npm run start
+    nodeVersion: "20"
+    buildCommand: npm install && cd frontend && npm install && npm run build && cd ../backend && npm install
+    startCommand: cd backend && NODE_ENV=production node server.js
     envVars:
       - key: NODE_ENV
         value: production
       - key: JWT_SECRET
         generateValue: true
-      - key: PORT
-        value: 5000
     healthCheckPath: /api/health
