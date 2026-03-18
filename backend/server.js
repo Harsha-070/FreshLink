@@ -28,7 +28,11 @@ app.use(express.json());
 
 // Serve static frontend in production
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../frontend/dist')));
+  // Try public folder first (Docker), then frontend/dist
+  const publicPath = path.join(__dirname, 'public');
+  const distPath = path.join(__dirname, '../frontend/dist');
+  const staticPath = require('fs').existsSync(publicPath) ? publicPath : distPath;
+  app.use(express.static(staticPath));
 }
 
 // API Routes
@@ -140,7 +144,10 @@ app.get('/api/health', (req, res) => {
 // Serve frontend for all other routes in production
 if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
+    const publicPath = path.join(__dirname, 'public', 'index.html');
+    const distPath = path.join(__dirname, '../frontend/dist/index.html');
+    const indexPath = require('fs').existsSync(publicPath) ? publicPath : distPath;
+    res.sendFile(indexPath);
   });
 }
 
