@@ -60,13 +60,14 @@ interface StockItem {
 }
 
 type SortOption = 'default' | 'price-asc' | 'price-desc' | 'name-asc';
-type CategoryKey = 'All' | 'Vegetables' | 'Leafy Greens' | 'Fruits';
+type CategoryKey = 'All' | 'Vegetables' | 'Leafy Greens' | 'Fruits' | 'Exotic';
 
 const CATEGORIES: { key: CategoryKey; label: string; icon: React.ReactNode }[] = [
   { key: 'All', label: 'All', icon: <Package className="w-4 h-4" /> },
   { key: 'Vegetables', label: 'Vegetables', icon: <Salad className="w-4 h-4" /> },
   { key: 'Leafy Greens', label: 'Leafy Greens', icon: <Leaf className="w-4 h-4" /> },
   { key: 'Fruits', label: 'Fruits', icon: <Apple className="w-4 h-4" /> },
+  { key: 'Exotic', label: 'Exotic', icon: <Cherry className="w-4 h-4" /> },
 ];
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
@@ -77,6 +78,8 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 ];
 
 const PAGE_SIZE = 12;
+
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=300&h=300&fit=crop';
 
 // ---------------------------------------------------------------------------
 // Skeleton Card
@@ -143,6 +146,7 @@ function ProductCard({ product }: { product: StockItem }) {
   const { items, addItem, updateQuantity, removeItem } = useCartStore();
   const cartItem = items.find((i) => i.stockId === product.id);
   const [qty, setQty] = useState(1);
+  const [imgSrc, setImgSrc] = useState(product.image || FALLBACK_IMAGE);
 
   const unitLabel =
     product.unit === 'piece' || product.unit === 'bunch' || product.unit === 'dozen'
@@ -194,10 +198,11 @@ function ProductCard({ product }: { product: StockItem }) {
         {/* Image */}
         <div className="relative h-52 overflow-hidden bg-slate-100">
           <img
-            src={product.image}
+            src={imgSrc}
             alt={product.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
             loading="lazy"
+            onError={() => setImgSrc(FALLBACK_IMAGE)}
           />
 
           {/* Surplus badge */}
@@ -461,9 +466,10 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                     return (
                       <div key={item.stockId} className="flex gap-3 px-5 py-4">
                         <img
-                          src={item.image}
+                          src={item.image || FALLBACK_IMAGE}
                           alt={item.name}
                           className="w-16 h-16 rounded-lg object-cover shrink-0"
+                          onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMAGE; }}
                         />
                         <div className="flex-1 min-w-0">
                           <h4 className="text-sm font-semibold text-slate-900 truncate">
