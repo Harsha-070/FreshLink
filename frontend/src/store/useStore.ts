@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { api } from '../lib/api';
 
 interface User {
   id: string;
@@ -19,96 +18,67 @@ interface User {
   deliveryAddress?: string;
 }
 
+// Demo users - no authentication needed
+const DEMO_VENDOR: User = {
+  id: 'vendor-demo',
+  name: 'Fresh Farms Vendor',
+  role: 'vendor',
+  phone: '9876543210',
+  email: 'vendor@freshlink.com',
+  rating: 4.5,
+  shopName: 'Fresh Farms',
+  shopAddress: 'Madhapur, Hyderabad',
+  shopDescription: 'Premium quality fresh produce',
+  upiId: 'freshfarms@upi',
+  location: { lat: 17.4400, lng: 78.3489, address: 'Madhapur, Hyderabad' },
+  totalOrders: 150,
+};
+
+const DEMO_BUSINESS: User = {
+  id: 'business-demo',
+  name: 'Hotel Grand Kitchen',
+  role: 'business',
+  phone: '9988776655',
+  email: 'business@freshlink.com',
+  businessType: 'Restaurant',
+  deliveryAddress: 'Jubilee Hills, Hyderabad',
+  location: { lat: 17.4325, lng: 78.4073, address: 'Jubilee Hills, Hyderabad' },
+  totalOrders: 85,
+};
+
 interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
 
-  login: (phone: string, password: string, role: 'vendor' | 'business') => Promise<void>;
-  register: (data: RegisterData) => Promise<void>;
+  setVendorMode: () => void;
+  setBusinessMode: () => void;
   logout: () => void;
   setCurrentUser: (user: User) => void;
-  refreshUser: () => Promise<void>;
-  updateProfile: (data: Partial<User>) => Promise<void>;
-}
-
-interface RegisterData {
-  name: string;
-  phone: string;
-  password: string;
-  role: 'vendor' | 'business';
-  email?: string;
-  // Vendor fields
-  shopName?: string;
-  shopAddress?: string;
-  shopDescription?: string;
-  upiId?: string;
-  // Business fields
-  businessType?: string;
-  deliveryAddress?: string;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
-      token: null,
+      token: 'demo-token',
       isAuthenticated: false,
       isLoading: false,
 
-      login: async (phone, password, role) => {
-        set({ isLoading: true });
-        try {
-          const data = await api.login(phone, password, role);
-          localStorage.setItem('freshlink-token', data.token);
-          set({ user: data.user, token: data.token, isAuthenticated: true, isLoading: false });
-        } catch (err: any) {
-          set({ isLoading: false });
-          throw err;
-        }
+      setVendorMode: () => {
+        set({ user: DEMO_VENDOR, token: 'demo-token', isAuthenticated: true });
       },
 
-      register: async (registerData) => {
-        set({ isLoading: true });
-        try {
-          const data = await api.register(registerData);
-          localStorage.setItem('freshlink-token', data.token);
-          set({ user: data.user, token: data.token, isAuthenticated: true, isLoading: false });
-        } catch (err: any) {
-          set({ isLoading: false });
-          throw err;
-        }
+      setBusinessMode: () => {
+        set({ user: DEMO_BUSINESS, token: 'demo-token', isAuthenticated: true });
       },
 
       logout: () => {
-        localStorage.removeItem('freshlink-token');
-        localStorage.removeItem('auth-storage');
         set({ user: null, token: null, isAuthenticated: false });
       },
 
       setCurrentUser: (user) => set({ user, isAuthenticated: true }),
-
-      refreshUser: async () => {
-        try {
-          const data = await api.getMe();
-          set({ user: data.user });
-        } catch (err) {
-          // If token is invalid, logout
-          get().logout();
-        }
-      },
-
-      updateProfile: async (profileData) => {
-        set({ isLoading: true });
-        try {
-          const data = await api.updateProfile(profileData);
-          set({ user: data.user, isLoading: false });
-        } catch (err: any) {
-          set({ isLoading: false });
-          throw err;
-        }
-      },
     }),
     {
       name: 'auth-storage',

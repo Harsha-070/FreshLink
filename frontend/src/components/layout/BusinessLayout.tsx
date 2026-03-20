@@ -9,11 +9,14 @@ import { useAuthStore } from '@/store/useStore';
 
 export function BusinessLayout() {
   const location = useLocation();
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, setBusinessMode } = useAuthStore();
 
-  if (!isAuthenticated || !user) {
-    return <Navigate to="/business/login" replace />;
-  }
+  // Auto-login as business for demo mode
+  React.useEffect(() => {
+    if (!isAuthenticated || user?.role !== 'business') {
+      setBusinessMode();
+    }
+  }, [isAuthenticated, user, setBusinessMode]);
 
   const navItems = [
     { path: '/business/dashboard', icon: Search, label: 'Discover', exact: true },

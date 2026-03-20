@@ -10,11 +10,14 @@ import { useAuthStore } from '@/store/useStore';
 
 export function VendorLayout() {
   const location = useLocation();
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, setVendorMode } = useAuthStore();
 
-  if (!isAuthenticated || !user) {
-    return <Navigate to="/vendor/login" replace />;
-  }
+  // Auto-login as vendor for demo mode
+  React.useEffect(() => {
+    if (!isAuthenticated || user?.role !== 'vendor') {
+      setVendorMode();
+    }
+  }, [isAuthenticated, user, setVendorMode]);
 
   const navItems = [
     { path: '/vendor/dashboard', icon: LayoutDashboard, label: 'Dashboard', exact: true },
