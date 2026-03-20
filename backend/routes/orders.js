@@ -36,16 +36,19 @@ router.post('/', authenticateToken, (req, res) => {
   const business = db.users.find((u) => u.id === req.user.id);
   let total = 0;
   const orderItems = items.map((item) => {
-    const subtotal = item.quantity * item.pricePerKg;
+    const price = item.pricePerKg || item.price || 0;
+    const subtotal = item.quantity * price;
     total += subtotal;
-    return { ...item, subtotal };
+    return { ...item, price, pricePerKg: price, subtotal };
   });
 
   db.orderCounter = (db.orderCounter || 2000) + 1;
   const newOrder = {
     id: `ORD-${db.orderCounter}`, vendorId: vendor.id, vendorName: vendor.name,
+    vendorUpiId: vendor.upiId || '',
     businessId: req.user.id, businessName: business?.name || req.user.name,
-    items: orderItems, total: Math.round(total), status: 'pending',
+    buyerName: business?.name || req.user.name,
+    items: orderItems, total: Math.round(total), totalAmount: Math.round(total), status: 'pending',
     deliveryAddress: deliveryAddress || business?.location?.address || 'Hyderabad',
     createdAt: new Date().toISOString(), estimatedDelivery: '45 mins',
   };
