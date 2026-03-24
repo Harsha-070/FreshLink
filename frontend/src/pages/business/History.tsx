@@ -12,8 +12,10 @@ import { api } from '../../lib/api';
 interface OrderItem {
   name: string;
   quantity: number;
-  price: number;
+  price?: number;
+  pricePerKg?: number;
   unit?: string;
+  subtotal?: number;
 }
 
 interface DeliveredOrder {
@@ -53,7 +55,7 @@ export default function BusinessHistory() {
   const totalOrders = orders.length;
   const totalSpent = orders.reduce((sum, order) => {
     if (order.totalAmount != null) return sum + order.totalAmount;
-    return sum + (order.items || []).reduce((s, i) => s + i.price * i.quantity, 0);
+    return sum + (order.items || []).reduce((s, i) => s + (i.subtotal || (i.pricePerKg || i.price || 0) * i.quantity), 0);
   }, 0);
   const avgOrderValue = totalOrders > 0 ? Math.round(totalSpent / totalOrders) : 0;
 
@@ -61,7 +63,7 @@ export default function BusinessHistory() {
   const getVendorName = (order: DeliveredOrder) => order.vendorName || order.vendor?.name || 'Vendor';
   const getTotal = (order: DeliveredOrder) => {
     if (order.totalAmount != null) return order.totalAmount;
-    return (order.items || []).reduce((acc, i) => acc + i.price * i.quantity, 0);
+    return (order.items || []).reduce((acc, i) => acc + (i.subtotal || (i.pricePerKg || i.price || 0) * i.quantity), 0);
   };
   const formatDate = (dateStr: string) => {
     try {
@@ -75,7 +77,7 @@ export default function BusinessHistory() {
     try {
       setReorderingId(order._id);
       await api.createOrder({
-        items: order.items.map((i) => ({ name: i.name, quantity: i.quantity, price: i.price, unit: i.unit })),
+        items: order.items.map((i) => ({ name: i.name, quantity: i.quantity, pricePerKg: i.pricePerKg || i.price, unit: i.unit })),
         vendorId: (order as any).vendorId || undefined,
       });
       toast.success('Reorder placed successfully! Check your Orders page.');
@@ -258,7 +260,7 @@ export default function BusinessHistory() {
                               </div>
                               <span className="font-medium text-slate-900">
                                 <IndianRupee className="w-3 h-3 inline" />
-                                {(item.price * item.quantity).toLocaleString('en-IN')}
+                                {(item.subtotal || (item.pricePerKg || item.price || 0) * item.quantity).toLocaleString('en-IN')}
                               </span>
                             </div>
                           ))}

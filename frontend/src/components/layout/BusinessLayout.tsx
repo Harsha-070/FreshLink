@@ -1,5 +1,5 @@
 import React from 'react';
-import { Outlet, Link, useLocation, Navigate } from 'react-router-dom';
+import { Outlet, Link, useLocation } from 'react-router-dom';
 import {
   Search, ChefHat, ShoppingCart, History, Settings
 } from 'lucide-react';
@@ -11,12 +11,7 @@ export function BusinessLayout() {
   const location = useLocation();
   const { user, isAuthenticated, setBusinessMode } = useAuthStore();
 
-  // Auto-login as business for demo mode
-  React.useEffect(() => {
-    if (!isAuthenticated || user?.role !== 'business') {
-      setBusinessMode();
-    }
-  }, [isAuthenticated, user, setBusinessMode]);
+  // No auto-login - ProtectedRoute in App.tsx handles redirect to /login
 
   const navItems = [
     { path: '/business/dashboard', icon: Search, label: 'Discover', exact: true },

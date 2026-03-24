@@ -281,7 +281,7 @@ export default function VendorOrders() {
                               </span>
                             </div>
                             <span className="font-medium text-slate-900">
-                              ₹{(item.price || item.totalPrice || 0).toLocaleString('en-IN')}
+                              ₹{(item.subtotal || (item.pricePerKg || item.price || 0) * (item.quantity || 1)).toLocaleString('en-IN')}
                             </span>
                           </div>
                         ))}

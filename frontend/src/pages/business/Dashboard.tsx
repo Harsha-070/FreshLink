@@ -43,11 +43,15 @@ interface FulfillmentPlan {
 }
 
 interface NearbyVendor {
-  vendorId: string;
-  vendorName: string;
+  id: string;
+  name: string;
   distance: number;
   rating?: number;
-  items?: Array<{ name: string; price: number; unit: string; isSurplus?: boolean }>;
+  address?: string;
+  totalItems?: number;
+  surplusItems?: number;
+  deliveryCost?: number;
+  topItems?: Array<{ name: string; pricePerKg: number; originalPrice?: number; quantity?: number; unit?: string; isSurplus?: boolean; image?: string }>;
 }
 
 export default function BusinessDashboard() {
@@ -73,7 +77,7 @@ export default function BusinessDashboard() {
       setLoading(true);
       const [produceData, vendorData] = await Promise.all([
         api.getProduceList().catch(() => ({ produce: [] })),
-        api.getNearbyVendors().catch(() => ({ vendors: [] })),
+        api.getNearbyVendors(17.385, 78.4867, 15).catch(() => ({ vendors: [] })),
       ]);
       setProduceList(produceData.produce || produceData || []);
       setNearbyVendors(vendorData.vendors || vendorData || []);
@@ -110,17 +114,43 @@ export default function BusinessDashboard() {
       const data = await api.findMatches({
         requirements: validItems.map((r) => ({ name: r.item, quantity: r.quantity, unit: r.unit })),
       });
-      const matches = data.matches || data || [];
-      const totalCost = data.totalCost || matches.reduce((sum: number, m: any) => {
-        const itemTotal = (m.items || []).reduce((s: number, i: any) => s + (i.price || 0) * (i.quantity || 1), 0);
-        return sum + (m.price || itemTotal || 0);
-      }, 0);
-      const deliveryCost = data.deliveryCost || Math.round(totalCost * 0.05);
+      // Backend returns { results: [...], fulfillmentPlan: {...} }
+      const results = data.results || [];
+      const plan = data.fulfillmentPlan || {};
+
+      // Transform results into vendor-grouped matches for display
+      const vendorMap = new Map<string, VendorMatch>();
+      results.forEach((result: any) => {
+        const matchList = Array.isArray(result.matches) ? result.matches : [];
+        matchList.forEach((m: any) => {
+          const key = m.vendorId || m.vendorName || 'unknown';
+          if (!vendorMap.has(key)) {
+            vendorMap.set(key, {
+              vendorId: m.vendorId,
+              vendorName: m.vendorName,
+              distance: m.distance,
+              rating: m.vendorRating,
+              items: [],
+            });
+          }
+          vendorMap.get(key)!.items!.push({
+            name: result.item,
+            price: m.pricePerKg,
+            unit: m.unit || 'kg',
+            availableQty: m.availableQty,
+            quantity: Math.min(result.quantityNeeded, m.availableQty),
+          });
+        });
+      });
+      const matches = Array.from(vendorMap.values());
+
+      const totalCost = plan.totalItemCost || 0;
+      const deliveryCost = plan.totalDeliveryCost || 0;
       setMatchResults({
         matches,
         totalCost,
         deliveryCost,
-        grandTotal: data.grandTotal || totalCost + deliveryCost,
+        grandTotal: plan.grandTotal || totalCost + deliveryCost,
       });
       toast.success(`Found ${matches.length} matching vendor(s)`);
     } catch (err: any) {
@@ -499,7 +529,7 @@ export default function BusinessDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {nearbyVendors.map((vendor, i) => (
               <motion.div
-                key={vendor.vendorId || i}
+                key={vendor.id || i}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.06 }}
@@ -511,10 +541,11 @@ export default function BusinessDashboard() {
                         <Truck className="w-5 h-5 text-emerald-600" />
                       </div>
                       <div className="min-w-0">
-                        <h4 className="font-bold text-slate-900 truncate">{vendor.vendorName}</h4>
+                        <h4 className="font-bold text-slate-900 truncate">{vendor.name}</h4>
                         <p className="text-xs text-slate-500 flex items-center">
                           <MapPin className="w-3 h-3 mr-0.5" />
-                          {vendor.distance?.toFixed(1)} km
+                          {vendor.distance?.toFixed(1)} km away
+                          {vendor.address && <span className="ml-1 truncate">- {vendor.address}</span>}
                         </p>
                       </div>
                     </div>
@@ -526,10 +557,20 @@ export default function BusinessDashboard() {
                       </div>
                     )}
 
-                    {vendor.items && vendor.items.length > 0 && (
+                    <div className="flex gap-3 text-xs text-slate-500 mb-3">
+                      <span className="bg-slate-100 px-2 py-0.5 rounded">{vendor.totalItems || 0} items</span>
+                      {(vendor.surplusItems || 0) > 0 && (
+                        <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded">{vendor.surplusItems} surplus</span>
+                      )}
+                      {vendor.deliveryCost != null && (
+                        <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded">Delivery: ₹{vendor.deliveryCost}</span>
+                      )}
+                    </div>
+
+                    {vendor.topItems && vendor.topItems.length > 0 && (
                       <div className="space-y-1.5">
                         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Top Items</p>
-                        {vendor.items.slice(0, 3).map((item, j) => (
+                        {vendor.topItems.slice(0, 3).map((item, j) => (
                           <div key={j} className="flex justify-between text-sm">
                             <span className="text-slate-600 truncate mr-2">
                               {item.name}
@@ -541,13 +582,13 @@ export default function BusinessDashboard() {
                             </span>
                             <span className="text-slate-900 font-medium whitespace-nowrap">
                               <IndianRupee className="w-3 h-3 inline" />
-                              {item.price}/{item.unit}
+                              {item.pricePerKg}/{item.unit || 'kg'}
                             </span>
                           </div>
                         ))}
-                        {vendor.items.length > 3 && (
+                        {vendor.topItems.length > 3 && (
                           <p className="text-xs text-emerald-600 font-medium flex items-center mt-1">
-                            +{vendor.items.length - 3} more <ChevronRight className="w-3 h-3 ml-0.5" />
+                            +{vendor.topItems.length - 3} more <ChevronRight className="w-3 h-3 ml-0.5" />
                           </p>
                         )}
                       </div>

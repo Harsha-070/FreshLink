@@ -291,7 +291,7 @@ export default function About() {
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link
-              to="/vendor/login"
+              to="/vendor/dashboard"
               className="inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-8 py-4 rounded-full transition-all duration-300"
             >
               Join as Vendor <ArrowRight className="w-5 h-5" />

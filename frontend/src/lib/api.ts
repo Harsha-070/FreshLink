@@ -1,14 +1,15 @@
+import { useAuthStore } from '@/store/useStore';
+
 const API_BASE = '/api';
 
 async function request(endpoint: string, options: RequestInit = {}) {
-  const token = localStorage.getItem('freshlink-token');
+  const { token, user } = useAuthStore.getState();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'X-Role': user?.role || 'vendor',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...((options.headers as Record<string, string>) || {}),
   };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
 
   const res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
   const data = await res.json();
@@ -20,33 +21,9 @@ async function request(endpoint: string, options: RequestInit = {}) {
 }
 
 export const api = {
-  // Auth - Phone + Password
-  login: (phone: string, password: string, role: 'vendor' | 'business') =>
-    request('/auth/login', { method: 'POST', body: JSON.stringify({ phone, password, role }) }),
-
-  register: (body: {
-    name: string;
-    phone: string;
-    password: string;
-    role: 'vendor' | 'business';
-    email?: string;
-    shopName?: string;
-    shopAddress?: string;
-    shopDescription?: string;
-    upiId?: string;
-    businessType?: string;
-    deliveryAddress?: string;
-  }) => request('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
-
-  checkPhone: (phone: string, role?: string) =>
-    request('/auth/check-phone', { method: 'POST', body: JSON.stringify({ phone, role }) }),
-
+  // Profile
   getMe: () => request('/auth/me'),
-
   updateProfile: (body: any) => request('/auth/profile', { method: 'PUT', body: JSON.stringify(body) }),
-
-  changePassword: (currentPassword: string, newPassword: string) =>
-    request('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
 
   // Stock
   getMyStock: () => request('/stock'),
@@ -67,7 +44,7 @@ export const api = {
   // Matching
   findMatches: (body: any) => request('/matching/find', { method: 'POST', body: JSON.stringify(body) }),
   getNearbyVendors: (lat?: number, lng?: number, radius?: number) =>
-    request(`/matching/nearby-vendors?lat=${lat || 17.385}&lng=${lng || 78.4867}&radius=${radius || 4}`),
+    request(`/matching/nearby-vendors?lat=${lat || 17.385}&lng=${lng || 78.4867}&radius=${radius || 15}`),
 
   // Requirements
   getRequirements: () => request('/requirements'),
@@ -86,7 +63,7 @@ export const api = {
   // Produce catalog
   getProduce: (params?: string) => request(`/produce${params ? `?${params}` : ''}`),
 
-  // Logistics (Instakart)
+  // Logistics
   getLogisticsPartners: (lat?: number, lng?: number, vehicleType?: string) =>
     request(`/logistics/partners?lat=${lat || 17.385}&lng=${lng || 78.4867}${vehicleType ? `&vehicleType=${vehicleType}` : ''}`),
   getDeliveryEstimate: (body: { pickupLocation: any; dropLocation: any; weightKg?: number; preferredVehicle?: string }) =>

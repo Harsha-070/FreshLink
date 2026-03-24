@@ -1,5 +1,5 @@
 import React from 'react';
-import { Outlet, Link, useLocation, Navigate } from 'react-router-dom';
+import { Outlet, Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Package, TrendingDown, ClipboardList,
   BarChart3, Settings
@@ -12,12 +12,7 @@ export function VendorLayout() {
   const location = useLocation();
   const { user, isAuthenticated, setVendorMode } = useAuthStore();
 
-  // Auto-login as vendor for demo mode
-  React.useEffect(() => {
-    if (!isAuthenticated || user?.role !== 'vendor') {
-      setVendorMode();
-    }
-  }, [isAuthenticated, user, setVendorMode]);
+  // No auto-login - ProtectedRoute in App.tsx handles redirect to /login
 
   const navItems = [
     { path: '/vendor/dashboard', icon: LayoutDashboard, label: 'Dashboard', exact: true },

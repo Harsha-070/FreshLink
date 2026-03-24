@@ -73,7 +73,7 @@ router.post('/', authenticateToken, (req, res) => {
 // PUT /api/orders/:id/status
 router.put('/:id/status', authenticateToken, (req, res) => {
   const { status } = req.body;
-  const validStatuses = ['confirmed', 'processing', 'in_transit', 'delivered', 'cancelled'];
+  const validStatuses = ['confirmed', 'processing', 'packed', 'in_transit', 'out_for_delivery', 'delivered', 'cancelled'];
   if (!validStatuses.includes(status)) return res.status(400).json({ error: 'Invalid status' });
 
   const order = db.orders.find((o) => o.id === req.params.id);

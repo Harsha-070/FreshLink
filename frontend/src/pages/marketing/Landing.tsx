@@ -193,14 +193,14 @@ export default function Landing() {
             className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4"
           >
             <Link
-              to="/vendor/login"
+              to="/vendor/dashboard"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-lg px-8 py-4 rounded-full transition-all duration-300 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-400/40 hover:scale-105"
             >
               I'm a Vendor
               <ArrowRight className="w-5 h-5" />
             </Link>
             <Link
-              to="/business/login"
+              to="/business/dashboard"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 border-2 border-slate-600 hover:border-slate-400 text-slate-200 hover:text-white font-bold text-lg px-8 py-4 rounded-full transition-all duration-300 hover:scale-105"
             >
               I'm a Business
@@ -437,7 +437,7 @@ export default function Landing() {
                 ))}
               </ul>
               <Link
-                to="/vendor/login"
+                to="/vendor/dashboard"
                 className="mt-8 inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-6 py-3 rounded-full transition-all duration-300 shadow-lg shadow-emerald-500/25"
               >
                 Start as Vendor <ArrowRight className="w-4 h-4" />
@@ -474,7 +474,7 @@ export default function Landing() {
                 ))}
               </ul>
               <Link
-                to="/business/login"
+                to="/business/dashboard"
                 className="mt-8 inline-flex items-center gap-2 bg-blue-500 hover:bg-blue-400 text-white font-bold px-6 py-3 rounded-full transition-all duration-300 shadow-lg shadow-blue-500/25"
               >
                 Start as Business <ArrowRight className="w-4 h-4" />

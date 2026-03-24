@@ -8,7 +8,7 @@ const router = express.Router();
 // POST /api/matching/find
 router.post('/find', authenticateToken, (req, res) => {
   const { requirements, buyerLat, buyerLng, maxDistanceKm } = req.body;
-  const maxDist = maxDistanceKm || 4;
+  const maxDist = maxDistanceKm || 15;
   if (!requirements || requirements.length === 0) return res.status(400).json({ error: 'Requirements required' });
 
   const lat = buyerLat || 17.3850;

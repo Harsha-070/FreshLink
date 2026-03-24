@@ -12,8 +12,10 @@ import { api } from '../../lib/api';
 interface OrderItem {
   name: string;
   quantity: number;
-  price: number;
+  price?: number;
+  pricePerKg?: number;
   unit?: string;
+  subtotal?: number;
 }
 
 interface Order {
@@ -80,7 +82,7 @@ export default function BusinessOrders() {
   const getVendorName = (order: Order) => order.vendorName || order.vendor?.name || 'Vendor';
   const getTotal = (order: Order) => {
     if (order.totalAmount != null) return order.totalAmount;
-    return (order.items || []).reduce((acc, i) => acc + i.price * i.quantity, 0);
+    return (order.items || []).reduce((acc, i) => acc + (i.subtotal || (i.pricePerKg || i.price || 0) * i.quantity), 0);
   };
   const formatDate = (dateStr: string) => {
     try {
@@ -355,10 +357,10 @@ export default function BusinessOrders() {
                                     <td className="px-4 py-3 font-medium text-slate-800">{item.name}</td>
                                     <td className="px-4 py-3 text-center text-slate-600">{item.quantity} {item.unit || 'kg'}</td>
                                     <td className="px-4 py-3 text-right text-slate-600">
-                                      <IndianRupee className="w-3 h-3 inline" />{item.price}
+                                      <IndianRupee className="w-3 h-3 inline" />{item.pricePerKg || item.price || 0}
                                     </td>
                                     <td className="px-4 py-3 text-right font-medium text-slate-900">
-                                      <IndianRupee className="w-3 h-3 inline" />{(item.price * item.quantity).toLocaleString('en-IN')}
+                                      <IndianRupee className="w-3 h-3 inline" />{(item.subtotal || (item.pricePerKg || item.price || 0) * item.quantity).toLocaleString('en-IN')}
                                     </td>
                                   </tr>
                                 ))}

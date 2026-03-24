@@ -208,13 +208,13 @@ export default function Features() {
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link
-              to="/vendor/login"
+              to="/vendor/dashboard"
               className="inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-8 py-4 rounded-full transition-all duration-300 shadow-lg shadow-emerald-500/25"
             >
               Join as Vendor <ArrowRight className="w-5 h-5" />
             </Link>
             <Link
-              to="/business/login"
+              to="/business/dashboard"
               className="inline-flex items-center justify-center gap-2 border-2 border-slate-600 hover:border-slate-400 text-slate-200 font-bold px-8 py-4 rounded-full transition-all duration-300"
             >
               Join as Business <ArrowRight className="w-5 h-5" />

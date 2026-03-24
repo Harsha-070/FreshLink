@@ -1127,12 +1127,12 @@ export default function Marketplace() {
                 </Link>
               </li>
               <li>
-                <Link to="/vendor/login" className="hover:text-emerald-400 transition-colors">
+                <Link to="/vendor/dashboard" className="hover:text-emerald-400 transition-colors">
                   For Vendors
                 </Link>
               </li>
               <li>
-                <Link to="/business/login" className="hover:text-emerald-400 transition-colors">
+                <Link to="/business/dashboard" className="hover:text-emerald-400 transition-colors">
                   For Restaurants
                 </Link>
               </li>
